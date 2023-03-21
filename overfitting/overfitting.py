@@ -122,9 +122,6 @@ class DataLoader:
 class MLPipeline(nn.Module):
     def __init__(self,epochs = 10,lr = 0.025):
         super().__init__()
-        ###In this constructor we set the model complexity, number of epochs for training, 
-        ##and learning rate lr. You should think of complexity here as "number of parameters"
-        #defining model. In linear regression, this e.g. may be (deg of poly)-1. 
         self.epochs = epochs
         self.lr = lr 
 
@@ -144,20 +141,12 @@ class MLPipeline(nn.Module):
         raise NotImplementedError
 
     def train_step(self,x_in,y_truth):
-        '''
-            returning y_pred so that a redundant call to forward isn't 
-            required 
-        '''
         y_score = self.forward(x_in)
         grad = self.backward(y_score,y_truth)
         self.update(grad)
         return y_score
 
     def fit(self,train_loader,val_loader = None,printing = False):
-        ### This method implements our "1. forward 2. backward 3. update paradigm"
-        ## it should call forward(), grad(), and update(), in that order. 
-        # you should also call metrics so that you may print progress during training
-        p_mets = np.zeros([self.epochs,4])
         nbatch_tr = train_loader.num_batches 
         nbatch_val = val_loader.num_batches
         n_batch = np.max([nbatch_tr, nbatch_val])
@@ -217,10 +206,6 @@ class FCNetFS(MLPipeline):
 
 
     def train_step(self,x_in,y_truth):
-        '''
-            overwriting train_step from MLPipeline since we use full forward instead of forward
-            Notice that our torch version uses MLPipeline's train_step
-        '''
         y_layers = self.full_forward(x_in)
         grad = self.backward(y_layers,y_truth)
         self.update(grad)
@@ -288,7 +273,6 @@ class FCNetFS(MLPipeline):
         return 1/(1+np.exp(-z))
     
     def cost(self,y_score,y_truth):
-        # your cost function should return cross entropy cost (sum over classes)
         c = -y_truth*np.log(y_score) -(1-y_truth)*np.log(1-y_score)
         dcdys  = -y_truth/y_score + (1-y_truth)/(1-y_score)
         return c.sum(axis = 0),dcdys
@@ -300,12 +284,10 @@ class FCNetFS(MLPipeline):
         return acc
     
     def loss(self,y_sc,y_truth):
-        ### calculating loss using partial as initial computation
         c,_ = self.cost(y_sc,y_truth)
         return c.mean()
 
     def l_grad(self,x_in,y_truth):
-        ### partial loss / partial y_pred 
         return None
 
 class FCNetTo(MLPipeline):
@@ -417,7 +399,6 @@ if __name__ == "__main__":
         N = int(j)
         dg = DataGenerator(dim = input_dim,N = N)
         xtr,ytr,xval,yval = dg.gen_data(mu_factor = .5,split=.5)
-        ## Notice our mu factor, it's tiny, so component-wise the data is hardly separated
         ds_tr = DataSet(xtr,ytr)
         ds_val = DataSet(xval,yval)
         dl_tr = DataLoader(ds_tr,5000)
