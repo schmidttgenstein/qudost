@@ -1,4 +1,3 @@
-
 import time
 import torch 
 import numpy as np 
@@ -7,8 +6,13 @@ import torch.nn as nn
 import numpy.linalg as la 
 import torch.optim as optim
 import matplotlib.pyplot as plt 
+import torch.nn.functional as F
 from collections import OrderedDict
+from torchvision.datasets import MNIST
 
+from torchvision.transforms import ToTensor
+from torch.utils.data import WeightedRandomSampler
+from torch.utils.data import DataLoader as TorchDataLoader
 
 class DataGenerator:
     def __init__(self,dim = 10,N = 10000):
@@ -116,7 +120,9 @@ class DataLoader:
 
 
 
-
+def hoeffding01(eps,n):
+    p = 2*np.exp(-2*(eps**2)*n)
+    return p 
 
 
 class MLPipeline(nn.Module):
@@ -148,33 +154,31 @@ class MLPipeline(nn.Module):
 
     def fit(self,train_loader,val_loader = None,printing = False):
         nbatch_tr = train_loader.num_batches 
-        nbatch_val = val_loader.num_batches
+        nbatch_val = val_loader.num_batches 
         n_batch = np.max([nbatch_tr, nbatch_val])
         m = val_loader.dataset.__len__()
-        eps = np.sqrt((np.log(2/0.0075))/(2*m))
         results_array = np.zeros([self.epochs,4])
         for epoch in range(self.epochs):
-            metrics_array = np.zeros([n_batch,2])
+            metrics_array = np.zeros([nbatch_tr,1])
+            vmetrics_array = np.zeros([nbatch_val,1])
             for batch_idx,(x_data,y_data) in enumerate(train_loader):
                 y_score = self.train_step(x_data,y_data)
                 train_metrics = self.metrics(y_score,y_data)
-                metrics_array[batch_idx,0] = train_metrics 
+                metrics_array[batch_idx,0] = train_metrics
             for batch_idx,(x_data,y_data) in enumerate(val_loader):
-                y_score = self.forward(x_data)
-                val_metrics = self.metrics(y_score,y_data)
-                metrics_array[batch_idx,1] = val_metrics
+                with torch.no_grad():
+                    y_score = self.forward(x_data)
+                    val_metrics = self.metrics(y_score,y_data)
+                vmetrics_array[batch_idx,0] = val_metrics
             if epoch % 1 == 0:
-                a,b,c= self.collate_metrics(metrics_array)
+                a,b,c= self.collate_metrics(metrics_array,vmetrics_array)
                 results_array[epoch,:] = np.array([epoch,a,b,c])
-                print(f"epoch {epoch}, accuracy {b:.3f}, train/val acc diff {a:.3f}, likely overfit {a > eps}")
-            if val_metrics > 1-eps/2.0:
-                results_array = results_array[:epoch,:]
-                break
+                print(f"epoch {epoch}, train_loss {train_metrics:.3f}, accuracy {b:.3f}, train/val acc diff {a:.3f}")
         return results_array
 
-    def collate_metrics(self,m_array):
+    def collate_metrics(self,m_array,vm_array):
         tr_dat = m_array[:,0].mean() 
-        te_dat = m_array[:,1].mean()
+        te_dat = vm_array[:,0].mean()
         diff = np.abs(tr_dat - te_dat)
         return diff,tr_dat, te_dat
 
@@ -280,7 +284,7 @@ class FCNetFS(MLPipeline):
     def metrics(self,y_score,y_truth):
         y_pred = self.y_pred(y_score)
         loss = self.loss(y_score,y_truth)
-        acc = (y_pred == y_truth).mean()
+        acc = (y_pred == y_truth).mean().item()
         return acc
     
     def loss(self,y_sc,y_truth):
@@ -289,6 +293,61 @@ class FCNetFS(MLPipeline):
 
     def l_grad(self,x_in,y_truth):
         return None
+
+class CNN(nn.Module):
+    def __init__(self, in_channels = 1 , num_classes = 10):
+        super(CNN, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=(3,3), stride=(1,1), padding=(1,1)) 
+        self.pool = nn.MaxPool2d(kernel_size=(2,2), stride = (2,2))
+        self.conv2 = nn.Conv2d(in_channels=8, out_channels=16, kernel_size=(3,3), stride=(1,1), padding=(1,1))
+        self.fc1 = nn.Linear(16*7*7, num_classes) 
+
+    def forward(self, x): 
+        x = F.relu(self.conv1(x))
+        x = self.pool(x)
+        x = F.relu(self.conv2(x))
+        x = self.pool(x)
+        x = x.reshape(x.shape[0], -1)
+        x = self.fc1(x)
+        return x
+
+class CNNetTo(MLPipeline):
+    def __init__(self, epoch:int= 250, lr = 0.05,):
+        super().__init__(epochs = epoch, lr = lr )
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        model = CNN()
+        model.to(device)
+        self.device = device
+        self.model = model
+        self.opt = optim.Adam(self.parameters(),lr = lr)
+        self.loss_fun = nn.CrossEntropyLoss()
+    
+    def y_pred(self,input,inIsX = False,thresh = .5):
+        if inIsX:
+            y_score = self.forward(input)
+        else:
+            y_score = input 
+        y_out = 0 * y_score
+        y_out[y_score >= thresh] = 1
+        return torch.transpose(y_out.int(),0,1)
+
+    def metrics(self,y_score,y_truth):
+        with torch.no_grad():
+            _, y_pred = y_score.max(axis = 1)
+            acc = (y_pred == y_truth).float().mean().item()
+        return  acc
+    
+    def forward(self,x_in):
+        return self.model.forward(x_in)
+    
+    def backward(self,y_score,y_truth):
+        self.opt.zero_grad()
+        loss = self.loss_fun(y_score,y_truth)
+        loss.backward()
+
+    def update(self,grad = None ):
+        self.opt.step()
+
 
 class FCNetTo(MLPipeline):
     def __init__(self,params:list=None,dims:list=None, epoch:int= 250, lr = 0.05,):
@@ -324,9 +383,8 @@ class FCNetTo(MLPipeline):
 
     def metrics(self,y_score,y_truth):
         with torch.no_grad():
-            y_pred = self.y_pred(y_score)
-            loss = self.loss_fun(y_score,torch.transpose(y_truth.float(),0,1))
-            acc = (y_pred == y_truth).float().mean()
+            _, y_pred = y_score.max(axis = 1)
+            acc = (y_pred == y_truth.argmax(0)).float().mean().item()
         return acc
     
     def forward(self,x_in):
@@ -339,6 +397,8 @@ class FCNetTo(MLPipeline):
 
     def update(self,grad = None ):
         self.opt.step()
+
+
         
 def hoeffding01(eps,n):
     p = 2*np.exp(-2*(eps**2)*n)
@@ -352,6 +412,7 @@ def summarize_performance(results_array,eps,n,save = False,app = ''):
     p = hoeffding01(eps,n)
     overfit = (diff > eps).astype(bool)
     eps = eps + 0 * epochs 
+
     plt.clf()
     plt.figure(1)
     plt.plot(epochs,diff,label = '|train metric - validation metric|')
@@ -361,6 +422,7 @@ def summarize_performance(results_array,eps,n,save = False,app = ''):
     plt.xlabel('epoch ')
     plt.ylabel('difference')    
     plt.legend()
+    plt.show()
     if save:
         fname = './../data/results/diff' + app + '.png'
         plt.savefig(fname)
@@ -380,56 +442,5 @@ def summarize_performance(results_array,eps,n,save = False,app = ''):
         fname = './../data/results/perf' + app + '.png'
         plt.savefig(fname)
     plt.clf()
-    #plt.show()
 
-
-
-if __name__ == "__main__":
-    
-    input_dim = 20
-    amod_list = [] 
-    bmod_list = []
-    tr_data_list = []
-    val_dat_list = []
-    for idx, j in enumerate(np.linspace(20000,2e6+20000,26)):
-        print(f"iteration {idx}")
-        input_dim = 25
-        eta = 1
-        num_epochs = 250
-        N = int(j)
-        dg = DataGenerator(dim = input_dim,N = N)
-        xtr,ytr,xval,yval = dg.gen_data(mu_factor = .5,split=.5)
-        ds_tr = DataSet(xtr,ytr)
-        ds_val = DataSet(xval,yval)
-        dl_tr = DataLoader(ds_tr,5000)
-        dl_val = DataLoader(ds_val, 5000)
-        anet = FCNetFS(dims = [input_dim,40,25,20,15,10,2],epochs = num_epochs,lr = eta)
-        t0 = time.time()
-        r_dat = anet.fit(dl_tr,dl_val,printing = True)
-
-        p = 0.0075
-        eps = np.sqrt(np.log(2/p)/(2*j))
-        
-        summarize_performance(r_dat,eps,N,save=True,app = str(2*idx))
-        t1 = time.time()-t0 
-        print('-------------')
-        print(f"took {t1:3f} seconds to run {num_epochs} epochs")
-        print('-------------')
-
-        ds_tr_to = DataSet(xtr,ytr,tor = True)
-        ds_val_to = DataSet(xval,yval,tor = True)
-        dl_tr_to = DataLoader(ds_tr_to,5000)
-        dl_val_to = DataLoader(ds_val_to, 5000)
-        num_epochs = 50
-        eta = .1
-        cnet = FCNetTo(dims = [input_dim,40,25,20,15,10,2], epoch = num_epochs, lr=eta)
-        t0 = time.time()
-        r_dat = cnet.fit(dl_tr_to,dl_val_to,printing = True)
-
-        summarize_performance(r_dat,eps,N,save = True, app = str(2*idx+1))
-        t1 = time.time()-t0 
-        print('-------------')
-        print(f"took {t1:3f} seconds to run {num_epochs} epochs")
-        print('-------------')  
-        time.sleep(1)
 
