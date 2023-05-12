@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qudost"
+version = "0.0.1"
+authors = [
+  {name="James Schmidt"}
+]
+description = "Utility tool to insert poisoned signals into an audio dataset"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "scikit-learn",
+  "torchvision",
+  "torchaudio >=0.13.0", 
+  "torchtext >=0.14", 
+  "matplotlib",
+  "torchmetrics >0.9, <1",
+  "pandas >1.4, <2",
+  "requests",
+  "pytest >7,<8",
+]
+[tool.setuptools.packages.find]
+include = ['qudost']
+
+[tool.pytest.ini_options]
+#pythonpath = '.'
+#testpaths = ['test']
+log_cli = 'True'
