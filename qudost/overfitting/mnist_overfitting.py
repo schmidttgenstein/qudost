@@ -1,4 +1,4 @@
-import time
+import yaml 
 import torch 
 import numpy as np 
 import pandas as pd 
@@ -13,13 +13,15 @@ from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
 from torch.utils.data import WeightedRandomSampler
 from torch.utils.data import DataLoader as TorchDataLoader
-
 from overfitting import CNNetTo, FCNetTo, DataGenerator, DataSet, DataLoader, summarize_performance
 
 
 if __name__ == "__main__":
-    train_data = MNIST(root = '/Users/schmiaj1/Documents/JHU/data', transform = ToTensor(), train = False, download = False)
-    eval_data = MNIST(root = '/Users/schmiaj1/Documents/JHU/data', transform = ToTensor(), train = True, download = False)
+    with open("../../configs/u_config.yaml", mode="rb") as file:
+        cfg = yaml.load(file,yaml.BaseLoader)
+    mnist_root = cfg['mnist_dir']
+    train_data = MNIST(root = mnist_root, transform = ToTensor(), train = False, download = False)
+    eval_data = MNIST(root = mnist_root, transform = ToTensor(), train = True, download = False)
     n_data = train_data.__len__()
     n_eval = eval_data.__len__()
     y_counts = np.zeros(10)
@@ -38,5 +40,4 @@ if __name__ == "__main__":
     p = 0.0075
     m = eval_data.__len__()
     eps = 0.0075
-
     summarize_performance(res_data,eps,m,save = True, app ='mnist')

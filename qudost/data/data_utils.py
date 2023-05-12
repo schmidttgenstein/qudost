@@ -51,11 +51,6 @@ class DataGenerator:
         idx1 = yo == 1 
         x1 = x[:,idx1]
         x0 = x[:,~idx1]
-        if show:
-            plt.hist(x0[coord,:],density = True, bins = 100,label = 'x(y=0)')
-            plt.hist(x1[coord,:],density = True, bins = 100,label = 'x(y=1)')
-            plt.legend()
-            plt.show()
 
 class DataSet:
     def __init__(self,x,y, tor = False):
@@ -106,3 +101,19 @@ class DataLoader:
 
     def __iter__(self):
         return DataBatcher(self.dataset,self.batch_size)
+    
+class DataSetFlipLabel:
+    def __init__(self,dataset,scheme):
+        self.orig_dataset = dataset
+        self.scheme = scheme
+
+    def flip_label(self,y):
+        return y 
+    
+    def __len__(self):
+        return self.orig_dataset.__len__() 
+    
+    def __getitem__(self,idx):
+        x,yo = self.orig_dataset.__getitem__(idx)
+        yf = self.flip_label(yo)
+        return x,yo 
