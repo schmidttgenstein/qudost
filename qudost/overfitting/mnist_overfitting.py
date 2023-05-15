@@ -9,12 +9,10 @@ import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from collections import OrderedDict
 from torchvision.datasets import MNIST
-
 from torchvision.transforms import ToTensor
 from torch.utils.data import WeightedRandomSampler
 from torch.utils.data import DataLoader as TorchDataLoader
-from overfitting import CNNetTo, FCNetTo, DataGenerator, DataSet, DataLoader, summarize_performance
-
+from qudost import CNNetTo
 
 if __name__ == "__main__":
     with open("../../configs/u_config.yaml", mode="rb") as file:
@@ -40,4 +38,4 @@ if __name__ == "__main__":
     p = 0.0075
     m = eval_data.__len__()
     eps = 0.0075
-    summarize_performance(res_data,eps,m,save = True, app ='mnist')
+    #summarize_performance(res_data,eps,m,save = True, app ='mnist')

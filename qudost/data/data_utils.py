@@ -53,20 +53,27 @@ class DataGenerator:
         x0 = x[:,~idx1]
 
 class DataSet:
-    def __init__(self,x,y, tor = False):
+    def __init__(self,x,y,tor = False,zdim = False):
+        self.zdim = zdim 
         if tor:
             self.x = torch.tensor(x).float() 
-            self.y = torch.tensor(y).int()
+            self.y = torch.tensor(y).float()
         else:
             self.x = x 
             self.y = y
-        self.n_samples = x.shape[1]
+        if zdim:
+            self.n_samples = x.shape[0]
+        else:
+            self.n_samples = x.shape[1]
 
     def __len__(self):
         return self.n_samples 
     
     def __getitem__(self,idx):
-        return self.x[:,idx], self.y[:,idx]
+        if self.zdim:
+            return self.x[idx], self.y[idx]
+        else:
+            return self.x[:,idx], self.y[:,idx]
 
 class DataBatcher:
     def __init__(self,dataset,batch_size = 1):
@@ -74,6 +81,7 @@ class DataBatcher:
         self.batch_size = batch_size
         self.counter = 0 
         self.dataset = dataset
+        self.zdim = dataset.zdim
 
     def __iter__(self):
         return self 

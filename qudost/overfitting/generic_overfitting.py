@@ -15,7 +15,8 @@ from torch.utils.data import WeightedRandomSampler
 #from torch.utils.data import DataLoader as TorchDataLoader
 
 
-from overfitting import CNNetTo, FCNetTo, FCNetFS, DataGenerator, DataSet, DataLoader, summarize_performance
+from overfitting import CNNetTo, FCNetTo, FCNetFS
+from data import DataGenerator, DataSet, DataLoader
 
 if __name__ == "__main__":
     
@@ -48,7 +49,7 @@ if __name__ == "__main__":
     r_dat = cnet.fit(dl_tr_to,dl_val_to,printing = True)
 
     eps = 0.0075
-    summarize_performance(r_dat,eps,N,save = True, app = 'fc net')
+    #summarize_performance(r_dat,eps,N,save = True, app = 'fc net')
     t1 = time.time()-t0 
     print('-------------')
     print(f"took {t1:3f} seconds to run {num_epochs} epochs")
