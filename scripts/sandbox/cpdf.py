@@ -4,15 +4,15 @@ import matplotlib.pyplot as plt
 from scipy.signal import argrelextrema
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
-from qudost.density import ECDF, EPDF, RegressionCDF, DensityNetwork
-from qudost.data import DataSet, DataLoader
+from qudost import ECDF, EPDF, RegressionCDF, DensityNetwork
+from qudost import DataSet, DataLoader
 
 
 def gen_data(n_data=10000,n_mixtures = 1,split = 0.5):
     datas = []
     for j in range(n_mixtures):
         m = np.random.normal(0,5)
-        s = np.random.lognormal()
+        s = 2*np.random.lognormal()
         data = np.random.normal(m,s,n_data)
         datas.append(data)
     data = np.concatenate(datas)
@@ -25,7 +25,7 @@ def gen_data(n_data=10000,n_mixtures = 1,split = 0.5):
 
 if __name__ == "__main__":
     N =    50000
-    x_tr, x_te = gen_data(N,n_mixtures = 3,split = .9)
+    x_tr, x_te = gen_data(N,n_mixtures = 3,split = .5)
     epdf_eval = EPDF(x_te)
     epdf_train = EPDF(x_tr)
     a_temp = argrelextrema(epdf_train.h,np.greater)
