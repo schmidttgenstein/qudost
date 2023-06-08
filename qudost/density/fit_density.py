@@ -71,9 +71,6 @@ class EPDF(ECDF):
         t = (t0+t1)/2 
         self.t = t 
         self.h = h
-
-
-
    
 
 class RegressionCDF(ECDF):
@@ -101,10 +98,15 @@ class DensityNetwork(MLPipeline):
         self.opt = optim.Adam([self.params],lr = lr)
         self.loss_fun = nn.MSELoss()
 
- 
+    def mod_loss(self, y_score, y_truth):
+        pre_loss = self.loss_fun(y_score,y_truth)
+        loss = pre_loss * (1 + y_truth)
+        return loss
+
     def metrics(self,y_score,y_truth):
         with torch.no_grad():
             loss = self.loss_fun(y_score,y_truth)
+            #loss = self.mod_loss(y_score,y_truth)
         return loss
     
     def forward(self,x_in):
@@ -116,7 +118,8 @@ class DensityNetwork(MLPipeline):
     
     def backward(self,y_score,y_truth):
         self.opt.zero_grad()
-        loss = self.loss_fun(y_score,y_truth)
+        loss = self.mod_loss(y_score,y_truth)
+        #loss = self.loss_fun(y_score,y_truth)
         loss.backward()
 
     def update(self,grad = None):
