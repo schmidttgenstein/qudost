@@ -38,7 +38,7 @@ class MLPipeline(nn.Module):
 
     def train_step(self,x_in,y_truth):
         y_score = self.forward(x_in)
-        grad = self.backward(y_score,y_truth)
+        grad = self.backward(y_score,y_truth,x_in)
         self.update(grad)
         return y_score
 

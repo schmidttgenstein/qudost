@@ -90,23 +90,27 @@ class RegressionCDF(ECDF):
 
 
 class DensityNetwork(MLPipeline):
-    def __init__(self,epdf, epoch:int= 250, lr = 0.05,):
+    def __init__(self,epdf, epoch:int= 250, lr = 0.05, lamb=0.5):
         super().__init__(epochs = epoch, lr = lr )
         self.params = nn.Parameter(torch.tensor(epdf.coeff,dtype = torch.float32,requires_grad = True))
+        self.lamb = lamb
         self.epdf = epdf
         self.activation = nn.Sigmoid() 
         self.opt = optim.Adam([self.params],lr = lr)
         self.loss_fun = nn.MSELoss()
 
-    def mod_loss(self, y_score, y_truth):
-        pre_loss = self.loss_fun(y_score,y_truth)
-        loss = pre_loss * (1 + y_truth)
+    def mod_loss(self, y_score, y_truth, x_in): ###Error: x_in is being read as a numpy array, don't know why if comes from a DataLoader
+        #pre_loss = self.loss_fun(y_score,y_truth)
+        p = self.poly_eval(x_in,self.params)
+        sig = self.activation(p)
+        ### Loss: lamda(sigma(p)(1-sigma(p))p'-histogram) + (1-lambda)(sigma(p)-empirical cdf)
+        loss = self.lamb*(y_score-y_truth)**2 + (1-self.lamb)*(sig-torch.tensor(self.epdf.cdf))**2 #how can I receive the empirical cdf with data in DataLoader???
+        #loss = pre_loss * (y_truth)
         return loss
 
     def metrics(self,y_score,y_truth):
         with torch.no_grad():
             loss = self.loss_fun(y_score,y_truth)
-            #loss = self.mod_loss(y_score,y_truth)
         return loss
     
     def forward(self,x_in):
@@ -116,9 +120,9 @@ class DensityNetwork(MLPipeline):
         f = sig * (1-sig) * p_prime
         return f
     
-    def backward(self,y_score,y_truth):
+    def backward(self,y_score,y_truth, x_in):
         self.opt.zero_grad()
-        loss = self.mod_loss(y_score,y_truth)
+        loss = self.mod_loss(y_score,y_truth, x_in).mean()
         #loss = self.loss_fun(y_score,y_truth)
         loss.backward()
 

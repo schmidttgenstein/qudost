@@ -57,13 +57,13 @@ def gau_mix(fit_samples,n_mixtures = 1):
     return gmm
 
 if __name__ == "__main__":
-    N =  50000
-    mix = 4
+    N =  100000
+    mix = 8
     #x_tr, x_te = gen_data(N,n_mixtures = mix,split = .9)
 
     n_modes, range_dom = mix, [-5,5]
     domain, cdf, pdf = simulate_multimodal_cdf(n_modes, range_dom, resolution=N)
-    x_tr, x_te = inverse_transform_sampling(domain, cdf, num_samples=N, split = .9)
+    x_tr, x_te = inverse_transform_sampling(domain, cdf, num_samples=N, split = .5)
     epdf_eval = EPDF(x_te)
     epdf_train = EPDF(x_tr)
     a_temp = argrelextrema(epdf_train.h,np.greater)
@@ -78,8 +78,13 @@ if __name__ == "__main__":
     plt.figure(1)
     plt.plot(x,y)
     plt.plot(x,p)
+
+    plt.figure(5)
+    plt.plot(domain, pdf, label = "true pdf")
+    plt.plot(x,epdf_train.sigma(p)*(1-epdf_train.sigma(p))*epdf_train.poly_derivative(x,poly_coeff), label = "LR pdf")
+    plt.legend()
   
-    dn = DensityNetwork(epdf_eval,epoch = 500,lr = 0.00075)
+    dn = DensityNetwork(epdf_eval,epoch = 500,lr = 0.01, lamb=0.5)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
     dl_tr = DataLoader(ds,batch_size = 1000)
     ds = DataSet(epdf_eval.t,epdf_eval.h, tor = True,zdim = True)
@@ -102,13 +107,14 @@ if __name__ == "__main__":
     f = sig * (1-sig) * pp
     plt.plot(epdf_train.t,f, label = 'model')
     plt.plot(epdf_train.t,gmm_pdf, label = 'GMM')
+    plt.plot(domain, pdf, label = 'true pdf')
 
     plt.legend()
     plt.figure(4)
     plt.plot(x,F)
     plt.plot(epdf_train.t,sig)
     '''
-    plt.figure(5)
+    plt.figure(6)
     # define subplot grid
     fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(15, 12))
     plt.subplots_adjust(hspace=0.5)
