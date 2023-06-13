@@ -11,7 +11,7 @@ from scipy.signal import argrelextrema
 
 class ECDF:
     def __init__(self,data):
-        data.sort()
+        data, _  = data.sort()
         self.data = data 
         self.m = data.shape[0]
         self.x_domain, self.cdf = self.ecdf()
@@ -65,7 +65,7 @@ class EPDF(ECDF):
         super().__init__(data)
         self.bw = 1/((data.shape[0])**(1/3))
         n_bins = int(self.bw**(-1))
-        h,t= np.histogram(data,bins = n_bins, density = True)
+        h,t= torch.histogram(data,bins = n_bins, density = True)
         t0 = t[:-1]
         t1 = t[1:]
         t = (t0+t1)/2 
@@ -100,11 +100,17 @@ class DensityNetwork(MLPipeline):
         self.loss_fun = nn.MSELoss()
 
     def mod_loss(self, y_score, y_truth, x_in): ###Error: x_in is being read as a numpy array, don't know why if comes from a DataLoader
+        ### CLEAN ME PLEASE :D 
         #pre_loss = self.loss_fun(y_score,y_truth)
         p = self.poly_eval(x_in,self.params)
         sig = self.activation(p)
         ### Loss: lamda(sigma(p)(1-sigma(p))p'-histogram) + (1-lambda)(sigma(p)-empirical cdf)
-        loss = self.lamb*(y_score-y_truth)**2 + (1-self.lamb)*(sig-torch.tensor(self.epdf.cdf))**2 #how can I receive the empirical cdf with data in DataLoader???
+        ### Pin here, need to line up sizing between sig + epdf."cdf"
+        epdf_cdf = 0 * sig
+        ## fix this implementation 
+        for j,x in enumerate(x_in):
+            epdf_cdf[j] = self.epdf.ecdf_point(x)
+        loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() #how can I receive the empirical cdf with data in DataLoader???
         #loss = pre_loss * (y_truth)
         return loss
 
@@ -122,7 +128,7 @@ class DensityNetwork(MLPipeline):
     
     def backward(self,y_score,y_truth, x_in):
         self.opt.zero_grad()
-        loss = self.mod_loss(y_score,y_truth, x_in).mean()
+        loss = self.mod_loss(y_score,y_truth, x_in)
         #loss = self.loss_fun(y_score,y_truth)
         loss.backward()
 
