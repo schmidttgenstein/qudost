@@ -27,6 +27,19 @@ def gen_data(n_data=10000,n_mixtures = 1,split = 0.5,tor = False):
         x_te = torch.tensor(x_te)
     return x_tr, x_te
 
+def gen_cauchy(n_data=10000, split=0.5, tor = False):
+    s = np.random.standard_cauchy(n_data)
+    s = s[(s>-20) & (s<20)]
+    np.random.shuffle(s)
+    split_idx = int(split * s.shape[0])
+    x_tr = s[:split_idx]
+    x_te = s[split_idx:]
+    if tor: 
+        x_tr = torch.tensor(x_tr)
+        x_te = torch.tensor(x_te)
+    return x_tr, x_te
+
+
 def sigma(t,a=1,b=0,):
         s = 1/(1+np.exp(-(t-b)/a))
         return s 
@@ -62,10 +75,10 @@ def gau_mix(fit_samples,n_mixtures = 1):
 
 if __name__ == "__main__":
     N =  100000
-    mix = 2
-    x_tr, x_te = gen_data(N,n_mixtures = mix,split = .9,tor= True)
-
-    n_modes, range_dom = mix, [-5,5]
+    mix = 1
+    #x_tr, x_te = gen_data(N,n_mixtures = mix,split = .9,tor= True)
+    x_tr, x_te = gen_cauchy(N,split = .9,tor = True)
+    #n_modes, range_dom = mix, [-5,5]
     #domain, cdf, pdf = simulate_multimodal_cdf(n_modes, range_dom, resolution=N)
     #x_tr, x_te = inverse_transform_sampling(domain, cdf, num_samples=N, split = .5)
     epdf_eval = EPDF(x_te)

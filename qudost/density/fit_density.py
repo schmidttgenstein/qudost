@@ -19,11 +19,15 @@ class ECDF:
     def domain(self,):
         i = 0 
         domain = []
-
+    
     def ecdf_point(self,x):
         idx = self.data <= x 
         return idx.sum() / self.m
-    
+    '''
+    def ecdf_point(self, x):
+        idx = self.data <= x
+        return idx.sum(axis=0) / self.m
+    '''
     def get_domain(self,eps):
         ## standin for later filtering
         return self.data
@@ -34,7 +38,14 @@ class ECDF:
         for j,xj in enumerate(x):
             F[j] = self.ecdf_point(xj)
         return x,F
-
+    
+    '''
+    def ecdf(self,):
+        x = self.get_domain(eps=0.001)
+        idx = self.data[:, np.newaxis] <= x
+        F = idx.sum(axis=0) / self.m
+        return x, F
+    '''
     def filter_cdf(self,epsilon):
         idx = (self.cdf > epsilon) & (self.cdf < 1-epsilon) 
         return self.x_domain[idx], self.cdf[idx]
@@ -99,6 +110,7 @@ class DensityNetwork(MLPipeline):
         self.opt = optim.Adam([self.params],lr = lr)
         self.loss_fun = nn.MSELoss()
 
+    
     def mod_loss(self, y_score, y_truth, x_in): ###Error: x_in is being read as a numpy array, don't know why if comes from a DataLoader
         ### CLEAN ME PLEASE :D 
         #pre_loss = self.loss_fun(y_score,y_truth)
@@ -110,9 +122,19 @@ class DensityNetwork(MLPipeline):
         ## fix this implementation 
         for j,x in enumerate(x_in):
             epdf_cdf[j] = self.epdf.ecdf_point(x)
-        loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() #how can I receive the empirical cdf with data in DataLoader???
-        #loss = pre_loss * (y_truth)
+        #mse_weighted = self.lamb*((1+y_truth)*(y_score-y_truth)**2)
+        #loss = mse_weighted.mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
+        loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
         return loss
+    
+    '''
+    def mod_loss(self, y_score, y_truth, x_in):
+        p = self.poly_eval(x_in, self.params)
+        sig = self.activation(p)
+        epdf_cdf = self.epdf.ecdf_point(x_in)
+        loss = self.lamb * ((y_score - y_truth) ** 2).mean() + (1 - self.lamb) * ((sig - epdf_cdf) ** 2).mean()
+        return loss
+    '''
 
     def metrics(self,y_score,y_truth):
         with torch.no_grad():
