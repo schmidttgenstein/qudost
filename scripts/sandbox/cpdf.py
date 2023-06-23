@@ -6,9 +6,28 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
 from qudost.density import ECDF, EPDF, RegressionCDF, DensityNetwork
-from qudost.data import DataSet, DataLoader
+from qudost.data import DataSet, DataLoader, DataGenerator
 from torch.utils.data import DataLoader as TorchDataLoader
 
+
+def fat_tail(N = 10000, split=0.5, tor = False):
+    y = np.random.random(N)
+    u = np.zeros(y.shape[0])
+    idx1 =  y<=1/4
+    u[idx1] =  -1/(4*y[idx1])
+    idx2 = (y>1/4) & (y<=3/4)
+    u[idx2] = 4*y[idx2]-2
+    idx3 = y>3/4
+    u[idx3] = 1/(4*(1-y[idx3]))
+    u = u[(u>-20)&(u<20)]
+    np.random.shuffle(u)
+    split_idx = int(split * u.shape[0])
+    x_tr = u[:split_idx]
+    x_te = u[split_idx:]
+    if tor: 
+        x_tr = torch.tensor(x_tr)
+        x_te = torch.tensor(x_te)
+    return x_tr, x_te
 
 def gen_data(n_data=10000,n_mixtures = 1,split = 0.5,tor = False):
     datas = []
@@ -76,8 +95,16 @@ def gau_mix(fit_samples,n_mixtures = 1):
 if __name__ == "__main__":
     N =  100000
     mix = 1
-    #x_tr, x_te = gen_data(N,n_mixtures = mix,split = .9,tor= True)
-    x_tr, x_te = gen_cauchy(N,split = .9,tor = True)
+    ##### WITH DATAGENERATOR
+    gen_dat = DataGenerator(N, n_mixture = mix, split = .5, tor = True)
+    x_tr, x_te = gen_dat.gmm_data()
+    #x_tr, x_te = gen_dat.fat_tail(thick = 0.5, trim = 20)
+    #x_tr, x_te = gen_dat.cauchy(trim = 25)
+
+    ##### WITHOUT DATAGENERATOR
+    #x_tr, x_te = fat_tail(N, split=0.5, tor = True)
+    #x_tr, x_te = gen_cauchy(N, split=0.5, tor = True)
+
     #n_modes, range_dom = mix, [-5,5]
     #domain, cdf, pdf = simulate_multimodal_cdf(n_modes, range_dom, resolution=N)
     #x_tr, x_te = inverse_transform_sampling(domain, cdf, num_samples=N, split = .5)
@@ -103,7 +130,7 @@ if __name__ == "__main__":
     plt.plot(x,epdf_train.sigma(p)*(1-epdf_train.sigma(p))*epdf_train.poly_derivative(x,poly_coeff), label = "LR pdf")
     plt.legend() '''
   
-    dn = DensityNetwork(epdf_train,epoch = 500,lr = 0.01, lamb=0.5)
+    dn = DensityNetwork(epdf_train,epoch = 100,lr = 0.01, lamb=0.5)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
     dl_tr = DataLoader(ds,batch_size = 1000)
     dse = DataSet(epdf_eval.t,epdf_eval.h, tor = True,zdim = True)
@@ -111,7 +138,8 @@ if __name__ == "__main__":
     dn.fit(dl_tr,dl_eval)
 
     plt.figure(2)
-    f_eval = dn.forward(torch.tensor(x_te,dtype = torch.float32))
+    #f_eval = dn.forward(x_te.clone())
+    f_eval = dn.forward(torch.tensor(x_te,dtype = torch.float32).detach())
     plt.plot(x_te,f_eval.detach().numpy())
     plt.hist(x_tr,bins = 150,density = True)
 
@@ -152,4 +180,12 @@ if __name__ == "__main__":
         ax.plot(epdf_train.t,f, label = 'model')
         ax.plot(epdf_train.t,gmm_pdf, label = 'GMM')
     '''
+    p_value = 0.9
+    #x_tr = torch.tensor(x_tr, dtype = torch.float32).detach()
+    #x_te = torch.tensor(x_te, dtype = torch.float32).detach()
+    interval_tr =dn.interval(x_tr, p_value)
+    interval_te =dn.interval(x_te, p_value)
+    print('Train interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_train.t, epdf_train.h, interval_tr))
+    print('Test interval:', interval_te, "L1-error + interval probability:", dn.densities_l1_distance(epdf_eval.t, epdf_eval.h, interval_te))
+
     plt.show()

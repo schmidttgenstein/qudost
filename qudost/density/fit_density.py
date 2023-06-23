@@ -167,3 +167,25 @@ class DensityNetwork(MLPipeline):
         x_pre = x ** (torch.arange(coeff.shape[0])-1)
         mult = coeff * torch.arange(coeff.shape[0])
         return x_pre @ mult
+    
+
+    def interval(self, x_in, p_value):
+        sorted_x = torch.sort(x_in)[0]
+        index = int(p_value*x_in.size(0))
+        x_left = sorted_x[0]
+        x_right = sorted_x[index]
+        return x_left, x_right
+    
+    def prob_interval(self, x_in, interval):
+        total_points = x_in.size(0)
+        points_within = torch.sum((x_in >= interval[0]) & (x_in <= interval[1]))
+        return points_within/total_points
+
+    def densities_l1_distance(self, x_in, h_values, interval):
+        ## Input x_values, h_values, left-right trim interval.
+        ## Output: L1-error and probability inside the range.
+        ##
+        model_values = self.forward(torch.tensor(x_in, dtype = torch.float32).detach())
+        l1_dif = torch.abs(h_values - model_values)
+        l1_dif_sum = torch.sum(l1_dif)
+        return l1_dif_sum, self.prob_interval(x_in, interval)
