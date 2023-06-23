@@ -97,8 +97,8 @@ if __name__ == "__main__":
     mix = 1
     ##### WITH DATAGENERATOR
     gen_dat = DataGenerator(N, n_mixture = mix, split = .5, tor = True)
-    x_tr, x_te = gen_dat.gmm_data()
-    #x_tr, x_te = gen_dat.fat_tail(thick = 0.5, trim = 20)
+    #x_tr, x_te = gen_dat.gmm_data()
+    x_tr, x_te = gen_dat.fat_tail(thick = 0.5, trim = 20)
     #x_tr, x_te = gen_dat.cauchy(trim = 25)
 
     ##### WITHOUT DATAGENERATOR
@@ -152,8 +152,10 @@ if __name__ == "__main__":
     pp = epdf_train.poly_derivative(epdf_train.t,poly_coeff)
     sig = epdf_train.sigma(epdf_train.poly_eval(epdf_train.t,poly_coeff))
     f = sig * (1-sig) * pp
+    f2 = dn.forward(torch.tensor(epdf_eval.t,dtype = torch.float32).detach())
     plt.plot(epdf_train.t,f, label = 'model')
     plt.plot(epdf_train.t,gmm_pdf, label = 'GMM')
+    plt.plot(epdf_eval.t,f2.detach(),label = 'actual model')
     #plt.plot(domain, pdf, label = 'true pdf')
 
     plt.legend()
@@ -180,12 +182,16 @@ if __name__ == "__main__":
         ax.plot(epdf_train.t,f, label = 'model')
         ax.plot(epdf_train.t,gmm_pdf, label = 'GMM')
     '''
-    p_value = 0.9
+    p_value = 0.999
     #x_tr = torch.tensor(x_tr, dtype = torch.float32).detach()
     #x_te = torch.tensor(x_te, dtype = torch.float32).detach()
-    interval_tr =dn.interval(x_tr, p_value)
-    interval_te =dn.interval(x_te, p_value)
+    interval_tr =dn.epdf.interval( p_value)
+    te_dom_valid_pr =  dn.epdf.prob_interval(x_te,interval_tr)
     print('Train interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_train.t, epdf_train.h, interval_tr))
-    print('Test interval:', interval_te, "L1-error + interval probability:", dn.densities_l1_distance(epdf_eval.t, epdf_eval.h, interval_te))
+    #print('Test interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_eval.t, epdf_eval.h, interval_tr))
 
     plt.show()
+
+
+    ### some of the todos: 1. figure out why dn.forward() does not match "manual computation of model" in figure 3
+    #### 2. metrics from l1 distance need to be applied/ applicable to other densities 
