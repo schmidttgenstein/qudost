@@ -3,6 +3,7 @@ import torch
 import numpy as np 
 import pandas as pd 
 import torch.nn as nn
+from torchvision import datasets, transforms
 
 class DataGenerator:
     def __init__(self,dim = 10,N = 10000, n_mixture = 2, split = 0.5, tor = False):
@@ -166,3 +167,16 @@ class DataSetFlipLabel:
         x,yo = self.orig_dataset.__getitem__(idx)
         yf = self.flip_label(yo)
         return x,yo 
+
+class ImageColorProj:
+    def __init__(self, dataset):
+        self.orig_dataset = dataset
+
+    def r_proj_getitem(self, idx, dim=0):
+        x,_ = self.orig_dataset.__getitem__(idx)
+        r_content = self.r_proj(x,dim)
+        return r_content
+
+    def r_proj(self, x_tensor, dim=0):
+        x = x_tensor[dim]
+        return torch.sum(x).item()
