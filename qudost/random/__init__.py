@@ -1,1 +1,1 @@
-from .projection import average
+from .projection import load_cifar
