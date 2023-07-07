@@ -1,5 +1,9 @@
 import torch
 import numpy as np 
+import os
+import time
+import sys
+import json
 import matplotlib.pyplot as plt
 from scipy.signal import argrelextrema
 from sklearn.preprocessing import PolynomialFeatures
@@ -93,25 +97,30 @@ def gau_mix(fit_samples,n_mixtures = 1):
     return gmm
 
 if __name__ == "__main__":
+    np.random.seed(1)
+    fname = str(time.time())
+    path_dir = "C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\qudost\\experiments\\"+fname+"\\"
+    os.mkdir(path_dir)
     N =  100000
-    mix = 1
+    mix = 2
     ##### WITH DATAGENERATOR
     gen_dat = DataGenerator(N, n_mixture = mix, split = .5, tor = True)
-    #x_tr, x_te = gen_dat.gmm_data()
-    x_tr, x_te = gen_dat.fat_tail(thick = 0.5, trim = 20)
+    x_tr, x_te = gen_dat.gmm_data()
+    type_data = "gaussian mixture"
+    #x_tr, x_te = gen_dat.fat_tail(thick = 0.5, trim = 20)
+    #type_data = "fat tail"
     #x_tr, x_te = gen_dat.cauchy(trim = 25)
+    #type_data = "cauchy"
 
-    ##### WITHOUT DATAGENERATOR
-    #x_tr, x_te = fat_tail(N, split=0.5, tor = True)
-    #x_tr, x_te = gen_cauchy(N, split=0.5, tor = True)
-
+    path = path_dir+fname
     #n_modes, range_dom = mix, [-5,5]
     #domain, cdf, pdf = simulate_multimodal_cdf(n_modes, range_dom, resolution=N)
     #x_tr, x_te = inverse_transform_sampling(domain, cdf, num_samples=N, split = .5)
     epdf_eval = EPDF(x_te)
     epdf_train = EPDF(x_tr)
     a_temp = argrelextrema(epdf_train.h.detach().numpy(),np.greater)
-    deg = a_temp[0].shape[0]*2 + 3
+    #deg = a_temp[0].shape[0]*2 + 3
+    deg = 7
     reg = RegressionCDF(epdf_eval.cdf, epdf_eval.x_domain,degree = deg)
     x,F = epdf_eval.filter_cdf(0.00001)
     _,y = epdf_eval.sigma_inverse(F)
@@ -121,27 +130,34 @@ if __name__ == "__main__":
 
     p = epdf_eval.poly_eval(x,poly_coeff)
     plt.figure(1)
-    plt.plot(x,y)
-    plt.plot(x,p)
+    plt.plot(x,y, label = 'sigma inverse cdf')
+    plt.plot(x,p, label = 'polynomial')
+    plt.title("Sigma inverse regression")
+    plt.legend()
+    plt.savefig(path_dir+"1_sigma_inverse.png")
 
-    '''
-    plt.figure(5)
-    plt.plot(domain, pdf, label = "true pdf")
-    plt.plot(x,epdf_train.sigma(p)*(1-epdf_train.sigma(p))*epdf_train.poly_derivative(x,poly_coeff), label = "LR pdf")
-    plt.legend() '''
-  
-    dn = DensityNetwork(epdf_train,epoch = 100,lr = 0.01, lamb=0.5)
+    epoch, lr, lamb = 200, 0.00001, 0.5
+    dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
-    dl_tr = DataLoader(ds,batch_size = 1000)
+    dl_tr = DataLoader(ds,batch_size = 100)
     dse = DataSet(epdf_eval.t,epdf_eval.h, tor = True,zdim = True)
-    dl_eval = DataLoader(dse,batch_size = 500)
+    dl_eval = DataLoader(dse,batch_size = 50)
+    
+    orig_stdout = sys.stdout
+    f = open(path_dir+'out.txt', 'w')
+    sys.stdout = f
+    print(poly_coeff)
     dn.fit(dl_tr,dl_eval)
+    sys.stdout = orig_stdout
+    f.close()
 
     plt.figure(2)
     #f_eval = dn.forward(x_te.clone())
     f_eval = dn.forward(torch.tensor(x_te,dtype = torch.float32).detach())
-    plt.plot(x_te,f_eval.detach().numpy())
+    plt.plot(x_te,f_eval.detach().numpy(), 'bo')
     plt.hist(x_tr,bins = 150,density = True)
+    plt.title("Histogram and model")
+    plt.savefig(path_dir+"2_histogram.png")
 
     gmm = gau_mix(x, mix)
     logprob = gmm.score_samples(epdf_train.t.reshape(epdf_train.t.shape[0],1))
@@ -149,19 +165,33 @@ if __name__ == "__main__":
     plt.figure(3)
     plt.plot(epdf_train.t,epdf_train.h,'.', label = 'train histo')
     plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo')
-    pp = epdf_train.poly_derivative(epdf_train.t,poly_coeff)
-    sig = epdf_train.sigma(epdf_train.poly_eval(epdf_train.t,poly_coeff))
-    f = sig * (1-sig) * pp
-    f2 = dn.forward(torch.tensor(epdf_eval.t,dtype = torch.float32).detach())
-    plt.plot(epdf_train.t,f, label = 'model')
+    #pp = epdf_train.poly_derivative(epdf_train.t,poly_coeff)
+    #sig = epdf_train.sigma(epdf_train.poly_eval(epdf_train.t,poly_coeff))
+    #f = sig * (1-sig) * pp
+    #parameters = dn.params.clone().detach().numpy()
+    #pp = epdf_train.poly_derivative(epdf_train.t,parameters)
+    #p_e = epdf_train.poly_eval(epdf_train.t,parameters)
+    #print("************************************",p_e)
+    #sig = epdf_train.sigma(epdf_train.poly_eval(epdf_train.t,parameters))
+    #f = sig * (1-sig) * pp
+    f2 = dn.forward(torch.tensor(epdf_train.t,dtype = torch.float32).detach())
+    #plt.plot(epdf_train.t,f, label = 'model')
     plt.plot(epdf_train.t,gmm_pdf, label = 'GMM')
-    plt.plot(epdf_eval.t,f2.detach(),label = 'actual model')
+    plt.plot(epdf_train.t,f2.detach(),label = 'actual model')
+    pp = epdf_eval.poly_eval(epdf_train.t,poly_coeff)
+    plt.plot(epdf_train.t,epdf_train.sigma(pp)*(1-epdf_train.sigma(pp))*epdf_train.poly_derivative(epdf_train.t,poly_coeff), label = "LR pdf")
     #plt.plot(domain, pdf, label = 'true pdf')
-
     plt.legend()
+    plt.title("Densities")
+    plt.savefig(path_dir+"3_densities.png")
+    
     plt.figure(4)
-    plt.plot(x,F)
-    plt.plot(epdf_train.t,sig)
+    plt.plot(x,F, label = 'Actual CDF')
+    plt.plot(x,dn.net_cdf(torch.tensor(x,dtype = torch.float32)).detach().numpy(), label = 'model CDF')
+    plt.plot(x, dn.activation(p), label = 'Linear Reg CDF')
+    plt.legend()
+    plt.title("CDF's")
+    plt.savefig(path_dir+"4_cdfs.png")
     '''
     plt.figure(6)
     # define subplot grid
@@ -189,9 +219,10 @@ if __name__ == "__main__":
     te_dom_valid_pr =  dn.epdf.prob_interval(x_te,interval_tr)
     print('Train interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_train.t, epdf_train.h, interval_tr))
     #print('Test interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_eval.t, epdf_eval.h, interval_tr))
-
+    parameters_data = {'data':type_data, 'number_samples':N, 'n_mixture':mix, 'degree':deg, 'learning_rate':lr, 'epochs':epoch, "lambda": lamb}
+    with open(path_dir+'parameters_data.json', 'w') as file:
+        json.dump(parameters_data, file, indent=4)
     plt.show()
 
 
-    ### some of the todos: 1. figure out why dn.forward() does not match "manual computation of model" in figure 3
-    #### 2. metrics from l1 distance need to be applied/ applicable to other densities 
+    ### some of the todos: 

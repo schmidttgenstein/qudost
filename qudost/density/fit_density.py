@@ -115,7 +115,7 @@ class RegressionCDF(ECDF):
 
 
 class DensityNetwork(MLPipeline):
-    def __init__(self,epdf, epoch:int= 250, lr = 0.05, lamb=0.5):
+    def __init__(self,epdf, epoch:int= 250, lr = 0.01, lamb=0.5):
         super().__init__(epochs = epoch, lr = lr )
         self.params = nn.Parameter(torch.tensor(epdf.coeff,dtype = torch.float32,requires_grad = True))
         self.lamb = lamb
@@ -123,32 +123,21 @@ class DensityNetwork(MLPipeline):
         self.activation = nn.Sigmoid() 
         self.opt = optim.Adam([self.params],lr = lr)
         self.loss_fun = nn.MSELoss()
-
+        #self.loss_fun = nn.L1Loss()
+        #self.loss_fun = nn.KLDivLoss()
     
-    def mod_loss(self, y_score, y_truth, x_in): ###Error: x_in is being read as a numpy array, don't know why if comes from a DataLoader
+    def mod_loss(self, y_score, y_truth, x_in):
         ### CLEAN ME PLEASE :D 
-        #pre_loss = self.loss_fun(y_score,y_truth)
         p = self.poly_eval(x_in,self.params)
         sig = self.activation(p)
-        ### Loss: lamda(sigma(p)(1-sigma(p))p'-histogram) + (1-lambda)(sigma(p)-empirical cdf)
-        ### Pin here, need to line up sizing between sig + epdf."cdf"
         epdf_cdf = 0 * sig
-        ## fix this implementation 
         for j,x in enumerate(x_in):
-            epdf_cdf[j] = self.epdf.ecdf_point(x)
-        #mse_weighted = self.lamb*((1+y_truth)*(y_score-y_truth)**2)
-        #loss = mse_weighted.mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
+            epdf_cdf[j] = self.epdf.ecdf_point(x) 
+        
+        #loss = self.lamb*((1+y_truth)*(y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
         loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
         return loss
     
-    '''
-    def mod_loss(self, y_score, y_truth, x_in):
-        p = self.poly_eval(x_in, self.params)
-        sig = self.activation(p)
-        epdf_cdf = self.epdf.ecdf_point(x_in)
-        loss = self.lamb * ((y_score - y_truth) ** 2).mean() + (1 - self.lamb) * ((sig - epdf_cdf) ** 2).mean()
-        return loss
-    '''
 
     def metrics(self,y_score,y_truth):
         with torch.no_grad():
@@ -156,6 +145,7 @@ class DensityNetwork(MLPipeline):
         return loss
     
     def forward(self,x_in):
+        ### TOCA MANDAR ACA UN SIGMA INVERSE??
         p = self.poly_eval(x_in,self.params)
         p_prime = self.poly_derivative(x_in,self.params)
         sig = self.activation(p)
@@ -182,6 +172,10 @@ class DensityNetwork(MLPipeline):
         mult = coeff * torch.arange(coeff.shape[0])
         return x_pre @ mult
     
+    def net_cdf(self,x_in):
+        p = self.poly_eval(x_in,self.params)
+        sig = self.activation(p)
+        return sig
 
     def densities_l1_distance(self, x_in, h_values, interval):
         ## Input x_values, h_values, left-right trim interval.
