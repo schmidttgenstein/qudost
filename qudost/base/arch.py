@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import torch.nn.functional as F
 from collections import OrderedDict
 from torchvision.datasets import MNIST
-
 from torchvision.transforms import ToTensor
 from torch.utils.data import WeightedRandomSampler
 from torch.utils.data import DataLoader as TorchDataLoader
@@ -49,21 +48,27 @@ class MLPipeline(nn.Module):
         m = val_loader.dataset.__len__()
         results_array = np.zeros([self.epochs,4])
         for epoch in range(self.epochs):
-            metrics_array = np.zeros([nbatch_tr,1])
-            vmetrics_array = np.zeros([nbatch_val,1])
+            metrics_array = np.zeros([nbatch_tr, 1])
+            vmetrics_array = np.zeros([nbatch_val, 1])
             for batch_idx,(x_data,y_data) in enumerate(train_loader):
                 y_score = self.train_step(x_data,y_data)
-                train_metrics = self.metrics(y_score,y_data)
-                metrics_array[batch_idx,0] = train_metrics
+                train_metrics = self.metrics(y_score, y_data)
+                metrics_array[batch_idx, 0] = train_metrics
+
+            # Update train_loss and accuracy based on metrics_array
+            train_loss = np.mean(metrics_array[:, 0])
+            accuracy = np.mean(metrics_array[:, 0])
+
+            
             for batch_idx,(x_data,y_data) in enumerate(val_loader):
                 with torch.no_grad():
                     y_score = self.forward(x_data)
                     val_metrics = self.metrics(y_score,y_data)
                 vmetrics_array[batch_idx,0] = val_metrics
-                if epoch % 1 == 0:
-                    a,b,c= self.collate_metrics(metrics_array,vmetrics_array)
-                    results_array[epoch,:] = np.array([epoch,a,b,c])
-                    print(f"epoch {epoch}, train_loss {train_metrics:.3f}, accuracy {b:.3f}, train/val acc diff {a:.3f}")
+            if epoch % 1 == 0:
+                a,b,c= self.collate_metrics(metrics_array,vmetrics_array)
+                results_array[epoch,:] = np.array([epoch,a,b,c])
+                print(f"epoch {epoch}, train_loss {train_metrics:.3f}, accuracy {b:.3f}, train/val acc diff {a:.3f}")
         return results_array
 
     def collate_metrics(self,m_array,vm_array):

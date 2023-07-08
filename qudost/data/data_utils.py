@@ -3,6 +3,7 @@ import torch
 import numpy as np 
 import pandas as pd 
 import torch.nn as nn
+from qudost.data.label_flipping import * 
 
 class DataGenerator:
     def __init__(self,dim = 10,N = 10000):
@@ -81,7 +82,7 @@ class DataBatcher:
         self.batch_size = batch_size
         self.counter = 0 
         self.dataset = dataset
-        self.zdim = dataset.zdim
+        #self.zdim = dataset.zdim
 
     def __iter__(self):
         return self 
@@ -113,12 +114,31 @@ class DataLoader:
 
 
 class DataSetFlipLabel:
-    def __init__(self,dataset,scheme):
+    def __init__(self, dataset, scheme=None):
         self.orig_dataset = dataset
         self.scheme = scheme
 
-    def flip_label(self,y):
-        return y 
+    def flip_label(self, y):
+        if self.scheme is None:
+            return y  # No scheme specified, leave label as is
+        elif self.scheme == "parity":
+            return flip_parity_label(y)
+        elif self.scheme == "primality":
+            return flip_primality_label(y)
+        elif self.scheme == "loops":
+            return flip_loop_label(y)
+        elif self.scheme == "mod_3":
+            return flip_mod_3_label(y)
+        elif self.scheme == "mod_4":
+            return flip_mod_4_label(y)
+        elif self.scheme == "mod_3_binary":
+            return flip_mod_3_binary_label(y)
+        elif self.scheme == "mod_4_binary":
+            return flip_mod_4_binary_label(y)
+        elif self.scheme == "0_to_4_binary":
+            return flip_0_to_4_binary_label(y)
+        else:
+            return y
     
     def __len__(self):
         return self.orig_dataset.__len__() 
@@ -126,4 +146,5 @@ class DataSetFlipLabel:
     def __getitem__(self,idx):
         x,yo = self.orig_dataset.__getitem__(idx)
         yf = self.flip_label(yo)
-        return x,yo 
+
+        return x,yf
