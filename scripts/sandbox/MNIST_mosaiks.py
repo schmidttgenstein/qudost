@@ -22,11 +22,14 @@ class Classification(MLPipeline):
         return self.cel(y_pred,y_true)  #torch.mean((y_pred - y_true) ** 2)
 
     def forward(self, x):
-        return self.linear(x)
+        x = self.linear(x)
+        x = torch.softmax(x, dim = 1)
+        return x
 
     def backward(self, y_pred, y_true):
         loss = self.loss(y_pred, y_true)
         loss.backward()
+        
     def train_step(self, x_data, y_data):
         self.optimizer.zero_grad()  # Clear gradients from previous iteration
 
@@ -35,7 +38,7 @@ class Classification(MLPipeline):
         loss.backward()  # Calculate gradients
 
         self.optimizer.step()  # Update parameters based on gradients
-
+        
         return y_pred, y_data  # Return y_data along with y_pred
 
 
@@ -51,6 +54,7 @@ class Classification(MLPipeline):
 
     def fit(self, train_loader, val_loader=None, printing=False):
         self.optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
+
         return super().fit(train_loader, val_loader, printing)
 
 
