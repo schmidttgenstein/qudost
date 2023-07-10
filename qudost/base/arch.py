@@ -39,7 +39,7 @@ class MLPipeline(nn.Module):
         y_score = self.forward(x_in)
         grad = self.backward(y_score,y_truth)
         self.update(grad)
-        return y_score
+        return y_score.detach()
 
     def fit(self,train_loader,val_loader = None,printing = False):
         nbatch_tr = train_loader.num_batches 

@@ -17,69 +17,56 @@ class Classification(MLPipeline):
         super().__init__(epochs=epochs, lr=lr)
         self.linear = nn.Linear(K, classes)  #Adjust the input size based on the number of patches used and # of classes for task
         self.cel = nn.CrossEntropyLoss()
+        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
+        self.training = True
 
     def loss(self, y_pred, y_true):
         return self.cel(y_pred,y_true)  #torch.mean((y_pred - y_true) ** 2)
 
     def forward(self, x):
         x = self.linear(x)
-        x = torch.softmax(x, dim = 1)
+        #if not self.training:
+        #x = torch.softmax(x, dim = 1)
         return x
 
     def backward(self, y_pred, y_true):
+        self.optimizer.zero_grad()
         loss = self.loss(y_pred, y_true)
         loss.backward()
-        
-    def train_step(self, x_data, y_data):
-        self.optimizer.zero_grad()  # Clear gradients from previous iteration
-
-        y_pred = self.forward(x_data)
-        loss = self.loss(y_pred, y_data)
-        loss.backward()  # Calculate gradients
-
-        self.optimizer.step()  # Update parameters based on gradients
-        
-        return y_pred, y_data  # Return y_data along with y_pred
 
 
     def update(self, grad=None):
         self.optimizer.step()
-        self.optimizer.zero_grad()
 
     def metrics(self, y_pred, y_true):
-        y_pred, y_true = y_pred[0], y_true
-        y_true = y_true.view(-1, 1).float()  # Reshape y_true to match the shape of y_pred
-        return torch.mean(torch.abs(y_pred - y_true))
-
-
-    def fit(self, train_loader, val_loader=None, printing=False):
-        self.optimizer = torch.optim.SGD(self.parameters(), lr=self.lr)
-
-        return super().fit(train_loader, val_loader, printing)
-
+        with torch.no_grad():
+            y_pred = torch.argmax(y_pred,1)  ### not sure what the following computation was doing y_pred[0], y_true
+            #y_true = y_true.view(-1, 1).float()  # Reshape y_true to match the shape of y_pred
+        return (y_pred == y_true).numpy().mean()
 
 if __name__ == "__main__":
     # Load MNIST dataset
-    mnist_train_dataset = MNIST(root='./data', train=True, transform = ToTensor(), download=True)
-    mnist_val_dataset = MNIST(root='./data', train=False, transform = ToTensor(), download=True)
+    mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data', train=True, transform = ToTensor(), download=True)
+    mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data', train=False, transform = ToTensor(), download=True)
 
     # Random patch parameters
-    patch_size = 3
-    num_patches = 50
+    patch_size = 7
+    num_patches = 150
     start_time = time.time()
         # Initialize RandomPatches and generate random patches
     random_patches = RandomPatches(mnist_train_dataset, K=num_patches, p=patch_size)
     patches = random_patches.random_patches()
 
     # Create featurized dataset
-    featurized_train_dataset = Featurization(mnist_train_dataset, patches)
+    featurized_train_dataset = Featurization(mnist_train_dataset, patches,True)
     end_time = time.time()
     featurize_time = end_time - start_time
     print("Featurization Time = ", featurize_time, ' seconds')
-    featurized_val_dataset = Featurization(mnist_val_dataset, patches)
+    featurized_val_dataset = Featurization(mnist_val_dataset, patches,True)
 
 
-    flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
+    #flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
+    flipping_schemes = ["parity"]
     results = []
 
     for scheme in flipping_schemes:
@@ -87,7 +74,7 @@ if __name__ == "__main__":
         train_flipped_labels = DataSetFlipLabel(featurized_train_dataset, scheme)
         val_flipped_labels = DataSetFlipLabel(featurized_val_dataset, scheme)
         # Create a data loader for the dataset
-        batch_size = 64
+        batch_size = 250
         train_loader = DataLoader(train_flipped_labels, batch_size=batch_size)
         val_loader = DataLoader(val_flipped_labels, batch_size=batch_size)
 
@@ -98,7 +85,7 @@ if __name__ == "__main__":
             num_classes = 3
         elif scheme == "mod_4":
             num_classes = 4
-        elif scheme == None:
+        elif scheme is None:
             num_classes = 10
 
         ## these steps are to fit the data loader to what our pipeline expects 
@@ -109,7 +96,7 @@ if __name__ == "__main__":
         val_loader.num_batches = int(np.ceil(val_flipped_labels.__len__() / batch_size))
 
         # Create an instance of MLPipeline for classification
-        pipeline = Classification(epochs = 10, lr = 0.025, K = num_patches, classes = num_classes)
+        pipeline = Classification(epochs = 50, lr = 0.005, K = num_patches, classes = num_classes)
 
         # Fit the MLPipeline on the dataset
         results_array = pipeline.fit(train_loader, val_loader,printing = True)
