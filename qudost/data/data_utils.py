@@ -146,5 +146,4 @@ class DataSetFlipLabel:
     def __getitem__(self,idx):
         x,yo = self.orig_dataset.__getitem__(idx)
         yf = self.flip_label(yo)
-
         return x,yf

@@ -15,10 +15,11 @@ from torch.utils.data import DataLoader as TorchDataLoader
 
 
 class MLPipeline(nn.Module):
-    def __init__(self,epochs = 10,lr = 0.025):
+    def __init__(self,epochs = 10,lr = 0.025,print_mod = 1):
         super().__init__()
         self.epochs = epochs
         self.lr = lr 
+        self.print_mod = print_mod
 
     def loss(self,):
         raise NotImplementedError
@@ -34,46 +35,35 @@ class MLPipeline(nn.Module):
 
     def metrics(self,x,y):
         raise NotImplementedError
+    
+    def print_update(self,epoch,results):
+        raise NotImplementedError
 
     def train_step(self,x_in,y_truth):
         y_score = self.forward(x_in)
-        grad = self.backward(y_score,y_truth)
+        grad, loss = self.backward(y_score,y_truth)
         self.update(grad)
-        return y_score.detach()
+        return y_score.detach(),loss 
 
-    def fit(self,train_loader,val_loader = None,printing = False):
-        nbatch_tr = train_loader.num_batches 
-        nbatch_val = val_loader.num_batches 
-        n_batch = np.max([nbatch_tr, nbatch_val])
-        m = val_loader.dataset.__len__()
-        results_array = np.zeros([self.epochs,4])
+    def fit(self,train_loader,val_loader = None,printing = False): 
+        results_array = np.array([])
+        tmetrics_array = np.array([])
+        vmetrics_array = np.array([])
         for epoch in range(self.epochs):
-            metrics_array = np.zeros([nbatch_tr, 1])
-            vmetrics_array = np.zeros([nbatch_val, 1])
-            for batch_idx,(x_data,y_data) in enumerate(train_loader):
-                y_score = self.train_step(x_data,y_data)
-                train_metrics = self.metrics(y_score, y_data)
-                metrics_array[batch_idx, 0] = train_metrics
-
-            # Update train_loss and accuracy based on metrics_array
-            train_loss = np.mean(metrics_array[:, 0])
-            accuracy = np.mean(metrics_array[:, 0])
-
-            
-            for batch_idx,(x_data,y_data) in enumerate(val_loader):
-                with torch.no_grad():
-                    y_score = self.forward(x_data)
-                    val_metrics = self.metrics(y_score,y_data)
-                vmetrics_array[batch_idx,0] = val_metrics
-            if epoch % 1 == 0:
-                a,b,c= self.collate_metrics(metrics_array,vmetrics_array)
-                results_array[epoch,:] = np.array([epoch,a,b,c])
-                print(f"epoch {epoch}, train_loss {train_metrics:.3f}, accuracy {b:.3f}, train/val acc diff {a:.3f}")
+            for _,(x_data,y_data) in enumerate(train_loader):
+                y_score,loss = self.train_step(x_data,y_data)
+                train_metrics = self.metrics(y_score, y_data,loss)
+                tmetrics_array = np.vstack([tmetrics_array,train_metrics]) if tmetrics_array.size else  train_metrics
+            if val_loader is not None:
+                for _,(x_data,y_data) in enumerate(val_loader):
+                    with torch.no_grad():
+                        y_score = self.forward(x_data)
+                        val_metrics = self.metrics(y_score,y_data)
+                    vmetrics_array  = np.vstack([vmetrics_array,val_metrics]) if vmetrics_array.size else val_metrics
+                results = np.concatenate([tmetrics_array.mean(axis = 0),vmetrics_array.mean(axis = 0)])
+            else:
+                results = tmetrics_array.mean(axis = 0)
+            results_array = np.vstack([results_array,results]) if results_array.size else results
+            if epoch % self.print_mod == 1:
+                self.print_update(epoch,results)
         return results_array
-
-    def collate_metrics(self,m_array,vm_array):
-        tr_dat = m_array[:,0].mean() 
-        te_dat = vm_array[:,0].mean()
-        diff = np.abs(tr_dat - te_dat)
-        return diff,tr_dat, te_dat
-    
