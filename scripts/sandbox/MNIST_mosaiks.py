@@ -51,8 +51,8 @@ if __name__ == "__main__":
 
     transf = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,),(0.5,))])
     # Load MNIST dataset
-    mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data', train=True, transform = transf, download=True)
-    mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data', train=False, transform =transf, download=True)
+    mnist_train_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=True, transform = transf, download=True)
+    mnist_val_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=False, transform =transf, download=True)
 
     # Random patch parameters
     num_patches = 150
