@@ -20,5 +20,5 @@ def gen_data(n):
 if __name__ == "__main__":
     N = 10000000
     d = gen_data(N)
-    plt.hist(d[(d>-200)&(d<200)],bins = 1000,density = True)
+    plt.hist(d[(d>-20)&(d<20)],bins = 1000,density = True)
     plt.show()
