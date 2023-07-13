@@ -203,4 +203,4 @@ class ImageColorProj:
     def r_proj(self, x_tensor, dim=0):
         x = x_tensor[dim]
         return torch.sum(x).item()
-
+  
