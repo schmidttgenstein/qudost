@@ -15,22 +15,36 @@ from torchvision.transforms import ToTensor
 from qudost.data.data_utils import DataGenerator, DataLoader, DataSetFlipLabel
 
 class RandomPatches:
-    def __init__(self, dataset, K=None,seed = 0):
+    def __init__(self, dataset, K=None, p=None, seed=0):
         self.dataset = dataset
-        self.n  = max(dataset.__getitem__(0)[0].shape)//2
+        self.n = max(dataset.__getitem__(0)[0].shape) // 2
         self.K = K
+        self.p = p
         np.random.seed(seed)
 
     def random_patches(self):
-        patches = {j:[] for j in np.arange(2,self.n)}
+        if self.p is None:
+            patches = {j: [] for j in np.arange(2, self.n)}
+            num_samples = len(self.dataset)
+            for _ in range(self.K):
+                patch, p = self.generate_patch(num_samples)
+                patches[p].append(patch)
+            patches = {k: v for k, v in patches.items() if len(v) > 0}
+            for j in patches.keys():
+                patches[j] = torch.stack(patches[j])
+            return patches
+        else:
+            patches = self.generate_patches_fixed_size()
+            return patches
+
+    def generate_patches_fixed_size(self):
+        patches = []
         num_samples = len(self.dataset)
         for _ in range(self.K):
-            patch,p = self.generate_patch(num_samples)
-            patches[p].append(patch)
-        patches = {k:v for k,v in patches.items() if len(v)>0}
-        for j in patches.keys():
-            patches[j] = torch.stack(patches[j])
-        return patches 
+            patch = self.generate_patch_fixed_size(num_samples)
+            patches.append(patch)
+        patches = torch.stack(patches)
+        return patches
 
     def generate_patch(self, num_samples):
         while True:
@@ -41,22 +55,39 @@ class RandomPatches:
             top = np.random.randint(num_rows - p + 1)
             left = np.random.randint(num_cols - p + 1)
             patch = image[:, top:top + p, left:left + p]
-            if patch.std() > 0.0: #check to make sure patches arent all 'white'
+            if patch.std() > 0.0: #check to make sure patches arent all 'background'
                 return patch, p 
 
+    def generate_patch_fixed_size(self, num_samples):
+        while True:
+            index = np.random.randint(num_samples)
+            image, _ = self.dataset[index]
+            _, num_rows, num_cols = image.shape
+            top = np.random.randint(num_rows - self.p + 1)
+            left = np.random.randint(num_cols - self.p + 1)
+            patch = image[:, top:top + self.p, left:left + self.p]
+            if patch.std() > 0.0: #check to make sure patches arent all 'background'
+                return patch
+        
+
 class Featurization(Dataset):
-    def __init__(self, dataset, patches,training = False):
+    def __init__(self, dataset, patches, training=False, p=None):
         self.dataset = dataset
         self.patches = patches
-        self.K = {p: patches[p].shape[0] for p in patches.keys()}
-        conv_layers = {p: nn.Conv2d(1, self.K[p], kernel_size=p, bias=False) for p in patches.keys()}
-        for p in patches.keys():
-            conv_layers[p].weight.data = self.patches[p]
-        self.conv_layers = conv_layers
-        #self.conv_layers = nn.Conv2d(1, self.K, kernel_size=self.p, bias=False)
+        self.p = p  # Add the 'p' attribute
+        self.K = self.calculate_K(patches)
+        self.conv_layers = None  # Initialize as None
         self.training = training
         if training:
             self.init_training()
+
+
+    def calculate_K(self, patches):
+        if isinstance(patches, dict):
+            return {p: patches[p].shape[0] for p in patches.keys()}  # Variable-sized patches
+        else:
+            return patches.size(0)  # Fixed-sized patches
+
 
     def __len__(self):
         return len(self.dataset)
@@ -71,31 +102,50 @@ class Featurization(Dataset):
         return x, y
 
     def init_training(self):
+        if self.conv_layers is None:
+            self.conv_layers = self.initialize_conv_layers()
+
         x_data = {}
         y_data = {}
         for j in range(self.dataset.__len__()):
-            x,y = self.dataset[j]
+            x, y = self.dataset[j]
             x_data[j] = self.featurize_input(x)
-            y_data[j] = y 
+            y_data[j] = y
         self.x_data = x_data
-        self.y_data = y_data 
+        self.y_data = y_data
+
+    def initialize_conv_layers(self):
+        if isinstance(self.patches, dict):  # Variable-sized patches
+            conv_layers = {p: nn.Conv2d(1, self.K[p], kernel_size=p, bias=False) for p in self.patches.keys()}
+            for p in self.patches.keys():
+                conv_layers[p].weight.data = self.patches[p]
+        else:  # Fixed-sized patches
+            conv_layers = {self.p: nn.Conv2d(1, self.K, kernel_size=self.p, bias=False)}
+            conv_layers[self.p].weight.data = self.patches
+        return conv_layers
 
 
     def featurize_input(self, x_data):
-        # Create convolutional layer with randomly initialized weights
         with torch.no_grad():
             image_tensor = x_data.unsqueeze(0)
-            conv_through_patches = []
-            for p in self.patches.keys():
-                conv_layer = self.conv_layers[p](image_tensor)
-                if len(conv_layer.shape) == 0:
-                    conv_layer = torch.tensor([conv_layer.item()])
+            if self.conv_layers is None:
+                self.conv_layers = self.initialize_conv_layers()
+            if isinstance(self.patches, dict):  # Variable-sized patches
+                conv_through_patches = []
+                for p in self.patches.keys():
+                    conv_layer = self.conv_layers[p](image_tensor)
+                    if len(conv_layer.shape) == 0:
+                        conv_layer = torch.tensor([conv_layer.item()])
+                    conv_layer = F.relu(conv_layer)
+                    fo = conv_layer.mean(dim=(2, 3)).squeeze() / p
+                    if len(fo.shape) == 0:
+                        fo = torch.tensor([fo])
+                    conv_through_patches.append(fo)
+                featurized_output = torch.cat(conv_through_patches)
+            else:  # Fixed-sized patches
+                conv_layer = self.conv_layers[self.p](image_tensor)
                 conv_layer = F.relu(conv_layer)
-                fo = conv_layer.mean(dim=(2, 3)).squeeze()/p
-                if len(fo.shape) == 0:
-                    fo = torch.tensor([fo])
-                conv_through_patches.append(fo)
-            featurized_output = torch.cat(conv_through_patches)
+                featurized_output = conv_layer.mean(dim=(2, 3)).squeeze() / self.p
+                if len(featurized_output.shape) == 0:
+                    featurized_output = torch.tensor([featurized_output])
         return featurized_output
-
-    
