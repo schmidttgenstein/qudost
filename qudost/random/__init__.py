@@ -1,1 +1,1 @@
-from .projection import load_cifar
+from .featurization import load_cifar
