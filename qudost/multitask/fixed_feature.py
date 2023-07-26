@@ -14,7 +14,9 @@ from qudost.multitask.custompatch import CustomFilterGenerator
 from qudost.multitask.classification import Classification
 from qudost.multitask.randomproj import Featurization
 import matplotlib.pyplot as plt
-'''
+
+#uncomment and use this code if Featurization is not working: 
+
 def featurize_dataset(dataset, patch):
     featurized_images = []
     labels = []
@@ -53,14 +55,14 @@ class CustomDataset(Dataset):
     def __len__(self):
         return len(self.images)
 
-'''
+
 if __name__ == "__main__":
     transf = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     # Load MNIST dataset
     mnist_train_dataset = MNIST(root='./data', train=True, transform=transf, download=True)
 
    
-    patch_size = 3
+    patch_size = 5
     shape_type = 'u_shape'
     # center_size = 10  # Adjust the size of the white center
 
@@ -69,9 +71,10 @@ if __name__ == "__main__":
     print(patches)
     # Create featurized dataset
 
+    scheme = None
 
-
-    featurized_train_dataset = Featurization(mnist_train_dataset, patches, True, p = patch_size)
+    featurized_train_dataset = featurize_dataset(mnist_train_dataset, patches)
+    featurized_train_dataset = DataSetFlipLabel(featurized_train_dataset, scheme)
     # Collect the featurized values and labels
     values = []
     labels = []
