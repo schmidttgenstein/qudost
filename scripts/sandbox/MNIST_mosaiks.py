@@ -17,11 +17,11 @@ if __name__ == "__main__":
 
     transf = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,),(0.5,))])
     # Load MNIST dataset
-    mnist_train_dataset = MNIST(root='./data', train=True, transform = transf, download=True)
-    mnist_val_dataset = MNIST(root='./data', train=False, transform =transf, download=True)
+    mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
+    mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
 
     # Random patch parameters, set patch size to None for variable patch size:
-    num_patches = 15
+    num_patches = 50
     patch_size = None
     start_time = time.time()
         # Initialize RandomPatches and generate random patches
@@ -35,7 +35,8 @@ if __name__ == "__main__":
     featurize_time = end_time - start_time
     print("Featurization Time = ", featurize_time, ' seconds')
 
-    flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
+    #flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
+    flipping_schemes = ["squash_4"]
     results = []
 
     for scheme in flipping_schemes:
@@ -51,10 +52,12 @@ if __name__ == "__main__":
         # Determine the number of classes based on the scheme
         if scheme in ["parity", "primality", "loops", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]:
             num_classes = 2
-        elif scheme == "mod_3":
+        elif scheme in ["squash_4","mod_3"]:
             num_classes = 3
-        elif scheme == "mod_4":
+        elif scheme in  ["squash_3","mod_4"]:
             num_classes = 4
+        elif scheme == "plus_1":
+            num_classes = 10
         elif scheme is None:
             num_classes = 10
 

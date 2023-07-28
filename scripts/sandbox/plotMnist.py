@@ -13,7 +13,7 @@ transf = transforms.Compose([
 ])
 
 # Load the MNIST dataset
-mnist_train_dataset = MNIST(root='./data', train=True, transform=transf, download=True)
+mnist_train_dataset = MNIST(root='./data', train=False, transform=transf, download=True)
 
 # Filter the dataset to obtain images of digit K
 filtered_indices = [i for i in range(len(mnist_train_dataset)) if mnist_train_dataset.targets[i] == K]

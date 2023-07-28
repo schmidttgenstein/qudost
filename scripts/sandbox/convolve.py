@@ -31,7 +31,7 @@ result = np.zeros((matrix_height, matrix_width))
 # Perform the convolution
 for i in range(matrix_height - kernel_height + 1):
     for j in range(matrix_width - kernel_width + 1):
-        matrix_subset = one[i:i+kernel_height, j:j+kernel_width]
+        matrix_subset = four[i:i+kernel_height, j:j+kernel_width]
         result[i+1, j+1] = np.sum(matrix_subset * kernel)
 
 relu_result = np.maximum(result, 0)

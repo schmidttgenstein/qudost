@@ -23,13 +23,16 @@ class RandomPatches:
         np.random.seed(seed)
 
     def random_patches(self):
+        p_arr = []
         if self.p is None:
             patches = {j: [] for j in np.arange(2, self.n)}
             num_samples = len(self.dataset)
             for _ in range(self.K):
                 patch, p = self.generate_patch(num_samples)
                 patches[p].append(patch)
+                p_arr.append(p)
             patches = {k: v for k, v in patches.items() if len(v) > 0}
+            self.p = p_arr
             for j in patches.keys():
                 patches[j] = torch.stack(patches[j])
             return patches
@@ -120,7 +123,7 @@ class Featurization(Dataset):
             for p in self.patches.keys():
                 conv_layers[p].weight.data = self.patches[p]
         else:  # Fixed-sized patches
-            conv_layers = {self.p: nn.Conv2d(1, self.K, kernel_size=self.p, bias=False)}
+            conv_layers = {self.p: nn.Conv2d(1, self.K, kernel_size=self.p, bias=True)}
             conv_layers[self.p].weight.data = self.patches
         return conv_layers
 

@@ -137,6 +137,12 @@ class DataSetFlipLabel:
             return flip_mod_4_binary_label(y)
         elif self.scheme == "0_to_4_binary":
             return flip_0_to_4_binary_label(y)
+        elif self.scheme == "plus_1":
+            return plus_1(y)
+        elif self.scheme == "squash_3":
+            return squash_3(y)
+        elif self.scheme == "squash_4":
+            return squash_4(y)
         else:
             return y
     

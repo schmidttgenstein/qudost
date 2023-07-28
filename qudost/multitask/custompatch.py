@@ -16,7 +16,7 @@ class CustomFilterGenerator:
 
         if shape_type == 'horizontal_line':
             
-            filter_data[:, :, :] = -1.0
+            filter_data[:, :, :] = -1.
             
             filter_data[:, self.patch_size // 2, :] = 1.0
 
@@ -65,6 +65,10 @@ class CustomFilterGenerator:
                 mask[center_start:center_end, center_start:center_end] = True
 
             filter_data[:, mask] = 1.0
+        
+        elif shape_type == 'inv_one':
+            filter_data[:, :, :] = 1.0
+            filter_data[:, :, self.patch_size // 2] = -1.0
 
         elif shape_type == 'right_angle':
             filter_data[:, :, :] = -1.0
