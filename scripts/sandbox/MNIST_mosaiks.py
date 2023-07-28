@@ -69,7 +69,8 @@ if __name__ == "__main__":
     print("Featurization Time = ", featurize_time, ' seconds')
 
 
-    flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
+    #flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
+    flipping_schemes = ["parity"]
     results = []
 
     for scheme in flipping_schemes:

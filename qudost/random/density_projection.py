@@ -5,6 +5,8 @@ from qudost.density import ECDF, EPDF, RegressionCDF, DensityNetwork
 from qudost.data import DataSet, DataLoader, ImageColorProj
 import json
 from random import shuffle
+from scipy import optimize, stats
+import timeit
 
 def read_json_file(file_path):
     try:
@@ -19,19 +21,32 @@ def read_json_file(file_path):
         print(f"An error occurred: {e}")
 
 
+def wasserstein_opt(cdf1, cdf2, x_vals):
+    # Compute the cost matrix for the optimal transport problem
+    cost_matrix = np.abs(np.subtract.outer(cdf1, cdf2))
+    # Solve the assignment problem to get the Wasserstein distance
+    row_ind, col_ind = optimize.linear_sum_assignment(cost_matrix)
+    wasserstein_dist = np.sum(cost_matrix[row_ind, col_ind] * np.diff(x_vals))
+    return wasserstein_dist
+
+def wasserstein_cdf(cdf1, cdf2, x_vals):
+    wasserstein_distance = torch.trapz(np.abs(cdf1 - cdf2), x_vals)
+    return wasserstein_distance
+
+
 if __name__ == "__main__":
     patch = str(123) # Ranging from 0 to 149
-    class_label = str(1) # Ranging from 0 to 9
+    class_label = str(0) # Ranging from 0 to 9
     #print(patch_0_feature_values)
     path = "feature_values_by_patches.json"
     feature_values_by_patches = read_json_file(path)
     data = feature_values_by_patches[patch][class_label]
-    shuffle(data)
+    #shuffle(data)
     patch_class = torch.tensor(data)
     plt.figure(1)
     plt.hist(patch_class,bins = 75,density = True, label = 'class {}'.format(class_label))
     plt.title("Histogram")
-    plt.show()
+    #plt.show()
 
     split = 0.5
     split_idx = int(split * patch_class.shape[0])
@@ -55,7 +70,7 @@ if __name__ == "__main__":
     plt.plot(x,p, label = 'polynomial')
     plt.title("Sigma inverse regression")
     plt.legend()
-    plt.show()
+    #plt.show()
 
     # Gradient Descent Correction
     epoch, lr, lamb = 200, 0.01, 0.5
@@ -66,21 +81,53 @@ if __name__ == "__main__":
     dl_eval = DataLoader(dse,batch_size = 1)
     dn.fit(dl_tr,dl_eval)
 
+    #Gradient descent for shifted eval
+    dn2 = DensityNetwork(epdf_eval,epoch = epoch,lr = lr, lamb=lamb)
+    ds2 = DataSet(epdf_eval.t,epdf_eval.h,tor = True,zdim = True)
+    dl_tr2 = DataLoader(ds2,batch_size = 1)
+    dse2 = DataSet(epdf_train.t,epdf_train.h, tor = True,zdim = True)
+    dl_eval2 = DataLoader(dse,batch_size = 1)
+    dn2.fit(dl_tr2,dl_eval2)
+
     plt.figure(3)
     plt.plot(epdf_train.t,epdf_train.h,'.', label = 'train histo')
     plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo')
-    f2 = dn.forward(torch.tensor(epdf_train.t,dtype = torch.float32).detach())
-    plt.plot(epdf_train.t,f2.detach(),label = 'model pred hist')
-    pp2 = epdf_eval.poly_eval(epdf_train.t,poly_coeff)
-    plt.plot(epdf_train.t,epdf_train.sigma(pp2)*(1-epdf_train.sigma(pp2))*epdf_train.poly_derivative(epdf_train.t,poly_coeff), label = "LR pred hist")
-    x = torch.linspace(epdf_train.t[0],epdf_train.t[-1],1000)
+    #f2 = dn.forward(torch.tensor(epdf_eval.t,dtype = torch.float32).detach())
+    #plt.plot(epdf_eval.t,f2.detach(),label = 'model pred hist')
+    #pp2 = epdf_eval.poly_eval(epdf_eval.t,poly_coeff)
+    #plt.plot(epdf_eval.t,epdf_train.sigma(pp2)*(1-epdf_train.sigma(pp2))*epdf_train.poly_derivative(epdf_eval.t,poly_coeff), label = "LR pred hist")
+    x = torch.linspace(epdf_train.t[0],epdf_train.t[-1],490)
     f = dn.forward(torch.tensor(x,dtype = torch.float32).detach())
-    plt.plot(x,f.detach().numpy(), label = 'actual model')
-    pp = epdf_eval.poly_eval(x,poly_coeff)
-    plt.plot(x,epdf_train.sigma(pp)*(1-epdf_train.sigma(pp))*epdf_train.poly_derivative(x,poly_coeff), label = "LR pdf")
+    f3 = dn2.forward(torch.tensor(x,dtype = torch.float32).detach())
+    plt.plot(x,f.detach().numpy(), label = 'training data model')
+    plt.plot(x,f3.detach().numpy(), label = 'evaluation data model')
+    #pp = epdf_eval.poly_eval(x,poly_coeff)
+    #plt.plot(x,epdf_train.sigma(pp)*(1-epdf_train.sigma(pp))*epdf_train.poly_derivative(x,poly_coeff), label = "LR pdf")
     plt.legend()
     plt.title("Densities with lambda={}, lr={}, for patch {} and label {}".format(lamb, lr, patch, class_label))
+    
+    plt.figure(4)
+    plt.plot(x, f.detach().numpy()/f3.detach().numpy())
+    plt.title("Ratio of densities")
+
+    pol1 = epdf_train.poly_eval(x,dn.params.detach().numpy())
+    pol2 = epdf_eval.poly_eval(x,dn2.params.detach().numpy())
+    plt.figure(5)
+    plt.plot(x,f.detach().numpy(), label = 'training data model')
+    plt.plot(x,f3.detach().numpy(), label = 'evaluation data model')
+    plt.plot(x,dn.activation(pol1), label = "train cdf")
+    plt.plot(x,dn2.activation(pol2), label = "evaluation cdf")
+    #was = wasserstein_opt(dn.activation(pol1)[:-1],dn.activation(pol2),x)
+    cdf1 = dn.activation(pol1)
+    cdf2 = dn2.activation(pol2)
+    was = wasserstein_cdf(dn.activation(pol1),dn2.activation(pol2),x)
+    scipy_time = timeit.timeit(lambda: stats.wasserstein_distance(x_te,x_tr), number=1000)
+    custom_time = timeit.timeit(lambda: wasserstein_cdf(cdf1,cdf2,x), number=1000)
+    plt.legend()
+    plt.title(f"Training and eval w/ Wasserstein distance = {was}")
     plt.show()
+
+    
 
 
 
