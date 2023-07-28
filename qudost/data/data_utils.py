@@ -3,12 +3,16 @@ import torch
 import numpy as np 
 import pandas as pd 
 import torch.nn as nn
+from torchvision import datasets, transforms
 from qudost.data.label_flipping import * 
 
 class DataGenerator:
-    def __init__(self,dim = 10,N = 10000):
+    def __init__(self,dim = 10,N = 10000, n_mixture = 2, split = 0.5, tor = False):
         self.dim = dim 
         self.N = N 
+        self.n_mixture = n_mixture
+        self.split = split
+        self.tor = tor
 
     def gen_data(self,n = None,split = 0.6,mu_factor = 1):
         if n is None:
@@ -53,6 +57,44 @@ class DataGenerator:
         x1 = x[:,idx1]
         x0 = x[:,~idx1]
 
+    def train_test_split(self, x):
+        np.random.shuffle(x)
+        split_idx = int(self.split * x.shape[0])
+        x_tr = x[:split_idx]
+        x_te = x[split_idx:]
+        if self.tor: 
+            x_tr = torch.tensor(x_tr)
+            x_te = torch.tensor(x_te)
+        return x_tr, x_te
+
+    def fat_tail(self, thick = 0.5, trim = 20):
+        n = 1/thick
+        y = np.random.random(self.N)
+        u = np.zeros(y.shape[0])
+        idx1 =  y<=1/n
+        u[idx1] =  -1/(n*y[idx1])
+        idx2 = (y>1/n) & (y<=(n-1)/n)
+        u[idx2] = n*y[idx2]-(n-2)
+        idx3 = y>(n-1)/n
+        u[idx3] = 1/(n*(1-y[idx3]))
+        u = u[(u>-trim)&(u<trim)]
+        return self.train_test_split(u)
+    
+    def gmm_data(self,):
+        datas = []
+        for j in range(self.n_mixture):
+            m = np.random.normal(0,5)
+            s = np.random.lognormal()
+            data = np.random.normal(m,s,self.N)
+            datas.append(data)
+        data = np.concatenate(datas)
+        return self.train_test_split(data)
+    
+    def cauchy(self, trim = 20):
+        s = np.random.standard_cauchy(self.N)
+        s = s[(s>-trim) & (s<trim)]
+        return self.train_test_split(s)
+        
 class DataSet:
     def __init__(self,x,y,tor = False,zdim = False):
         self.zdim = zdim 
@@ -60,7 +102,7 @@ class DataSet:
             self.x = torch.tensor(x).float() 
             self.y = torch.tensor(y).float()
         else:
-            self.x = x 
+            self.x = x
             self.y = y
         if zdim:
             self.n_samples = x.shape[0]
@@ -153,3 +195,18 @@ class DataSetFlipLabel:
         x,yo = self.orig_dataset.__getitem__(idx)
         yf = self.flip_label(yo)
         return x,yf
+
+class ImageColorProj:
+    def __init__(self, dataset):
+        
+        self.orig_dataset = dataset
+
+    def r_proj_getitem(self, idx, dim=0):
+        x,_ = self.orig_dataset.__getitem__(idx)
+        r_content = self.r_proj(x,dim)
+        return r_content
+
+    def r_proj(self, x_tensor, dim=0):
+        x = x_tensor[dim]
+        return torch.sum(x).item()
+  

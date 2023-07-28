@@ -19,6 +19,8 @@ if __name__ == "__main__":
     # Load MNIST dataset
     mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
     mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
+    #mnist_train_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=True, transform = transf, download=True)
+    #mnist_val_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=False, transform =transf, download=True)
 
     # Random patch parameters, set patch size to None for variable patch size:
     num_patches = 50
@@ -35,8 +37,9 @@ if __name__ == "__main__":
     featurize_time = end_time - start_time
     print("Featurization Time = ", featurize_time, ' seconds')
 
+
     #flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
-    flipping_schemes = ["squash_4"]
+    flipping_schemes = ["parity"]
     results = []
 
     for scheme in flipping_schemes:
