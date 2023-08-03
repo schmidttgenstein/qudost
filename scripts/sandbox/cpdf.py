@@ -99,8 +99,8 @@ def gau_mix(fit_samples,n_mixtures = 1):
 if __name__ == "__main__":
     np.random.seed(1)
     fname = str(time.time())
-    path_dir = "C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\qudost\\experiments\\"+fname+"\\"
-    os.mkdir(path_dir)
+    #path_dir = "C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\qudost\\experiments\\"+fname+"\\"
+    #os.mkdir(path_dir)
     N =  100000
     mix = 2
     ##### WITH DATAGENERATOR
@@ -112,7 +112,7 @@ if __name__ == "__main__":
     #x_tr, x_te = gen_dat.cauchy(trim = 25)
     #type_data = "cauchy"
 
-    path = path_dir+fname
+    #path = path_dir+fname
     #n_modes, range_dom = mix, [-5,5]
     #domain, cdf, pdf = simulate_multimodal_cdf(n_modes, range_dom, resolution=N)
     #x_tr, x_te = inverse_transform_sampling(domain, cdf, num_samples=N, split = .5)
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     plt.plot(x,p, label = 'polynomial')
     plt.title("Sigma inverse regression")
     plt.legend()
-    plt.savefig(path_dir+"1_sigma_inverse.png")
+    #plt.savefig(path_dir+"1_sigma_inverse.png")
 
     epoch, lr, lamb = 200, 0.00001, 0.5
     dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb)
@@ -144,12 +144,12 @@ if __name__ == "__main__":
     dl_eval = DataLoader(dse,batch_size = 50)
     
     orig_stdout = sys.stdout
-    f = open(path_dir+'out.txt', 'w')
-    sys.stdout = f
+    #f = open(path_dir+'out.txt', 'w')
+    #sys.stdout = f
     print(poly_coeff)
     dn.fit(dl_tr,dl_eval)
-    sys.stdout = orig_stdout
-    f.close()
+    #sys.stdout = orig_stdout
+    #f.close()
 
     plt.figure(2)
     #f_eval = dn.forward(x_te.clone())
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     plt.plot(x_te,f_eval.detach().numpy(), 'bo')
     plt.hist(x_tr,bins = 150,density = True)
     plt.title("Histogram and model")
-    plt.savefig(path_dir+"2_histogram.png")
+    #plt.savefig(path_dir+"2_histogram.png")
 
     gmm = gau_mix(x, mix)
     logprob = gmm.score_samples(epdf_train.t.reshape(epdf_train.t.shape[0],1))
@@ -183,7 +183,7 @@ if __name__ == "__main__":
     #plt.plot(domain, pdf, label = 'true pdf')
     plt.legend()
     plt.title("Densities")
-    plt.savefig(path_dir+"3_densities.png")
+    #plt.savefig(path_dir+"3_densities.png")
     
     plt.figure(4)
     plt.plot(x,F, label = 'Actual CDF')
@@ -191,7 +191,7 @@ if __name__ == "__main__":
     plt.plot(x, dn.activation(p), label = 'Linear Reg CDF')
     plt.legend()
     plt.title("CDF's")
-    plt.savefig(path_dir+"4_cdfs.png")
+    #plt.savefig(path_dir+"4_cdfs.png")
     '''
     plt.figure(6)
     # define subplot grid
