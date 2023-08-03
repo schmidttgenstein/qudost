@@ -15,11 +15,12 @@ from torchvision.transforms import ToTensor
 from qudost.data.data_utils import DataGenerator, DataLoader, DataSetFlipLabel
 
 class RandomPatches:
-    def __init__(self, dataset, K=None, p=None, seed=0):
+    def __init__(self, dataset, threshold = None, K=None, p=None, seed=0):
         self.dataset = dataset
         self.n = max(dataset.__getitem__(0)[0].shape) // 2
         self.K = K
         self.p = p
+        self.threshold = threshold
         np.random.seed(seed)
 
     def random_patches(self):
@@ -40,6 +41,22 @@ class RandomPatches:
             patches = self.generate_patches_fixed_size()
             return patches
 
+    def eval_separation(self, patch, p):
+        patch = patch.unsqueeze(0)
+        temp_dataset = Featurization(self.dataset, patch, True, p)
+        # Collect feature values for each label
+        features_per_label = {i: [] for i in range(10)}  # Assuming MNIST with 10 labels
+        for i in range(len(temp_dataset)):
+            x, y = temp_dataset[i]
+            features_per_label[y].append(x.numpy())
+        
+        # Compute mean feature value for each label
+        mean_features = [np.mean(features_per_label[i]) for i in range(10)]
+        
+        # Check variance of the mean feature values
+        variance = np.var(mean_features)
+        return variance
+
     def generate_patches_fixed_size(self):
         patches = []
         num_samples = len(self.dataset)
@@ -58,8 +75,14 @@ class RandomPatches:
             top = np.random.randint(num_rows - p + 1)
             left = np.random.randint(num_cols - p + 1)
             patch = image[:, top:top + p, left:left + p]
+            
             if patch.std() > 0.0: #check to make sure patches arent all 'background'
-                return patch, p 
+                if self.threshold == None:
+                    return patch, p
+                else:
+                    variance = self.eval_separation(patch, p)
+                    if variance > self.threshold:
+                        return patch, p 
 
     def generate_patch_fixed_size(self, num_samples):
         while True:
@@ -70,9 +93,12 @@ class RandomPatches:
             left = np.random.randint(num_cols - self.p + 1)
             patch = image[:, top:top + self.p, left:left + self.p]
             if patch.std() > 0.0: #check to make sure patches arent all 'background'
-                return patch
-        
-
+                if self.threshold == None:
+                    return patch
+                else:
+                    variance = self.eval_separation(patch, self.p)
+                    if variance > self.threshold:
+                        return patch 
 class Featurization(Dataset):
     def __init__(self, dataset, patches, training=False, p=None):
         self.dataset = dataset
