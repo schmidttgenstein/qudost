@@ -5,22 +5,21 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torch.nn.functional as F
-from torchvision.datasets import MNIST
-from torch.utils.data import DataLoader, Dataset
-from qudost.data.data_utils import DataGenerator, DataSetFlipLabel
-from qudost.base.arch import MLPipeline
+from torchvision.datasets import MNIST, CIFAR10
 from qudost.data.label_flipping import *
 from qudost.multitask.custompatch import CustomFilterGenerator
 from qudost.multitask.classification import Classification
 from qudost.multitask.randomproj import Featurization
 import matplotlib.pyplot as plt
 
-import pdb 
 if __name__ == "__main__":
     transf = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     # Load MNIST dataset
     mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform=transf, download=False)
-
+    transform = transforms.Compose(
+    [transforms.ToTensor(),
+     transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+    cifar_train_dataset = CIFAR10(root = '/Users/schmiaj1/Documents/JHU/data/', train = True,transform = transform, download = True)
    
     patch_size = 7
     shape_type = 'inv_one'
@@ -34,7 +33,7 @@ if __name__ == "__main__":
 
 
 
-    featurized_train_dataset = Featurization(mnist_train_dataset, patches, True, p = patch_size)
+    featurized_train_dataset = Featurization(cifar_train_dataset, patches, True, p = patch_size)
     # Collect the featurized values and labels
     values = []
     labels = []

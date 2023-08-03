@@ -1,17 +1,9 @@
-import os
-import torch
-import numpy as np
-import torch.nn as n
-import torch.optim as optim
-from torchvision.datasets import MNIST
-from torchvision.transforms import ToTensor
-from qudost.multitask.randomproj import *
-from torch.utils.data import DataLoader
-from qudost.data.data_utils import DataGenerator,  DataSetFlipLabel
-from qudost.base.arch import MLPipeline
-from qudost.data.label_flipping import *
-from qudost.multitask.classification import Classification 
 import time
+import numpy as np
+from torchvision.datasets import MNIST
+from qudost.multitask.randomproj import * 
+from qudost.data.data_utils import    DataSetFlipLabel
+from qudost.data.label_flipping import *
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
@@ -22,7 +14,7 @@ if __name__ == "__main__":
     mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=False)
 
     # Random patch parameters, set patch size to None for variable patch size:
-    num_patches = 15
+    num_patches = 5
     patch_size = None
     start_time = time.time()
         # Initialize RandomPatches and generate random patches
