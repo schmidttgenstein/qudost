@@ -33,6 +33,10 @@ def wasserstein_cdf(cdf1, cdf2, x_vals):
     wasserstein_distance = torch.trapz(np.abs(cdf1 - cdf2), x_vals)
     return wasserstein_distance
 
+def wasserstein_point(cdf1, point, x_vals):
+    heaviside_point = torch.where(x_vals < point, 0, 1)
+    wasserstein_distance = torch.trapz(np.abs(cdf1 - heaviside_point), x_vals)
+    return wasserstein_distance
 
 if __name__ == "__main__":
     patch = str(123) # Ranging from 0 to 149
@@ -125,6 +129,14 @@ if __name__ == "__main__":
     custom_time = timeit.timeit(lambda: wasserstein_cdf(cdf1,cdf2,x), number=1000)
     plt.legend()
     plt.title(f"Training and eval w/ Wasserstein distance = {was}")
+
+    #Wasserstein distance point to distribution
+    shuffle(data)
+    patch_class = torch.tensor(data)
+    epdf = EPDF(patch_class)
+    x,F = epdf_train.filter_cdf(0.00001)
+    wass_dis = wasserstein_point(torch.from_numpy(F), 0.5, x)
+    print("Wasserstein distro to point:", wass_dis.item())
     plt.show()
 
     

@@ -97,7 +97,7 @@ def gau_mix(fit_samples,n_mixtures = 1):
     return gmm
 
 if __name__ == "__main__":
-    np.random.seed(1)
+    np.random.seed(1) # 125 is two almost separated classes
     fname = str(time.time())
     path_dir = "C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\qudost\\experiments\\"+fname+"\\"
     os.mkdir(path_dir)
@@ -121,14 +121,14 @@ if __name__ == "__main__":
     a_temp = argrelextrema(epdf_train.h.detach().numpy(),np.greater)
     #deg = a_temp[0].shape[0]*2 + 3
     deg = 7
-    reg = RegressionCDF(epdf_eval.cdf, epdf_eval.x_domain,degree = deg)
-    x,F = epdf_eval.filter_cdf(0.00001)
-    _,y = epdf_eval.sigma_inverse(F)
+    reg = RegressionCDF(epdf_train.cdf, epdf_train.x_domain,degree = deg)
+    x,F = epdf_train.filter_cdf(0.00001)
+    _,y = epdf_train.sigma_inverse(F)
     model, poly_coeff, ypdf = reg.linear_regression(x,y)
     epdf_eval.coeff = poly_coeff
     epdf_train.coeff = poly_coeff
 
-    p = epdf_eval.poly_eval(x,poly_coeff)
+    p = epdf_train.poly_eval(x,poly_coeff)
     plt.figure(1)
     plt.plot(x,y, label = 'sigma inverse cdf')
     plt.plot(x,p, label = 'polynomial')
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     plt.legend()
     plt.savefig(path_dir+"1_sigma_inverse.png")
 
-    epoch, lr, lamb = 200, 0.00001, 0.5
+    epoch, lr, lamb = 200, 0.0001, 0.5
     dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
     dl_tr = DataLoader(ds,batch_size = 100)

@@ -31,7 +31,7 @@ class ECDF:
         ## standin for later filtering
         return self.data
     
-    def ecdf(self,x = None):
+    def ecdf(self,x = None, alpha = 100):
         if x is None:
             x = self.get_domain(eps = 0.001)
         else:
@@ -40,7 +40,25 @@ class ECDF:
         F = np.zeros(m)
         for j,xj in enumerate(x):
             F[j] = (j+1)/m #self.ecdf_point(xj,x)
-        return x,F
+        x_interpolated, F_interpolated = self.fill_gaps(x, F, alpha)
+        return x_interpolated, F_interpolated
+    
+    def fill_gaps(self, x, F, alpha):
+        x_interpolated = [x[0]]
+        F_interpolated = [F[0]]
+
+        for i in range(1, len(x)):
+            if x[i] - x[i - 1] > 1e-1:
+                num_points = int(alpha)
+                x_interp = np.linspace(x[i - 1], x[i], num_points + 2)[1:-1]
+                F_interp = np.interp(x_interp, [x[i - 1], x[i]], [F[i - 1], F[i]])
+                x_interpolated.extend(x_interp)
+                F_interpolated.extend(F_interp)
+
+            x_interpolated.append(x[i])
+            F_interpolated.append(F[i])
+
+        return np.array(x_interpolated), np.array(F_interpolated)
     
     def filter_cdf(self,epsilon):
         idx = (self.cdf > epsilon) & (self.cdf < 1-epsilon) 
