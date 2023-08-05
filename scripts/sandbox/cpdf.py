@@ -120,24 +120,26 @@ if __name__ == "__main__":
     epdf_train = EPDF(x_tr)
     a_temp = argrelextrema(epdf_train.h.detach().numpy(),np.greater)
     #deg = a_temp[0].shape[0]*2 + 3
-    deg = 7
+    deg = 5
     reg = RegressionCDF(epdf_train.cdf, epdf_train.x_domain,degree = deg)
     x,F = epdf_train.filter_cdf(0.00001)
     _,y = epdf_train.sigma_inverse(F)
     model, poly_coeff, ypdf = reg.linear_regression(x,y)
     epdf_eval.coeff = poly_coeff
     epdf_train.coeff = poly_coeff
+    scale_factor = 10**(-np.round(np.log10(np.abs(poly_coeff))))
 
     p = epdf_train.poly_eval(x,poly_coeff)
+    ''' 
     plt.figure(1)
     plt.plot(x,y, label = 'sigma inverse cdf')
     plt.plot(x,p, label = 'polynomial')
     plt.title("Sigma inverse regression")
-    plt.legend()
+    plt.legend() '''
     #plt.savefig(path_dir+"1_sigma_inverse.png")
 
-    epoch, lr, lamb = 200, 0.0001, 0.5
-    dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb)
+    epoch, lr, lamb = 500, 0.0005, .5
+    dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb,sf = scale_factor)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
     dl_tr = DataLoader(ds,batch_size = 100)
     dse = DataSet(epdf_eval.t,epdf_eval.h, tor = True,zdim = True)
@@ -146,7 +148,7 @@ if __name__ == "__main__":
     orig_stdout = sys.stdout
     #f = open(path_dir+'out.txt', 'w')
     #sys.stdout = f
-    print(poly_coeff)
+    
     dn.fit(dl_tr,dl_eval)
     #sys.stdout = orig_stdout
     #f.close()
@@ -162,6 +164,7 @@ if __name__ == "__main__":
     gmm = gau_mix(x, mix)
     logprob = gmm.score_samples(epdf_train.t.reshape(epdf_train.t.shape[0],1))
     gmm_pdf = np.exp(logprob)
+
     plt.figure(3)
     plt.plot(epdf_train.t,epdf_train.h,'.', label = 'train histo')
     plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo')
@@ -188,7 +191,7 @@ if __name__ == "__main__":
     plt.figure(4)
     plt.plot(x,F, label = 'Actual CDF')
     plt.plot(x,dn.net_cdf(torch.tensor(x,dtype = torch.float32)).detach().numpy(), label = 'model CDF')
-    plt.plot(x, dn.activation(p), label = 'Linear Reg CDF')
+    plt.plot(x, dn.activation(torch.tensor(p)), label = 'Linear Reg CDF')
     plt.legend()
     plt.title("CDF's")
     #plt.savefig(path_dir+"4_cdfs.png")
@@ -213,6 +216,7 @@ if __name__ == "__main__":
         ax.plot(epdf_train.t,gmm_pdf, label = 'GMM')
     '''
     p_value = 0.999
+    ''' 
     #x_tr = torch.tensor(x_tr, dtype = torch.float32).detach()
     #x_te = torch.tensor(x_te, dtype = torch.float32).detach()
     interval_tr =dn.epdf.interval( p_value)
@@ -222,7 +226,7 @@ if __name__ == "__main__":
     parameters_data = {'data':type_data, 'number_samples':N, 'n_mixture':mix, 'degree':deg, 'learning_rate':lr, 'epochs':epoch, "lambda": lamb}
     with open(path_dir+'parameters_data.json', 'w') as file:
         json.dump(parameters_data, file, indent=4)
-    plt.show()
+    plt.show() '''
 
 
     ### some of the todos: 
