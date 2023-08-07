@@ -37,5 +37,9 @@ def plus_1(label):
 
 def squash_3(label):
     return int(label//3)
+
 def squash_4(label):
     return int(label//4)
+
+def find_1(label):
+    return(int(label in [1]))

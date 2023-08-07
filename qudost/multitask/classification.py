@@ -16,8 +16,9 @@ import time
 class Classification(MLPipeline):
     def __init__(self, epochs=10, lr=0.025, K = 50, classes = 2):
         super().__init__(epochs=epochs, lr=lr,print_mod = 5)
-        self.linear = nn.Linear(K, classes)  #Adjust the input size based on the number of patches used and # of classes for task
-        #self.linear2 = nn.Linear(10,classes)
+        self.linear = nn.Linear(K, int(K/2))
+          #Adjust the input size based on the number of patches used and # of classes for task
+        self.linear2 = nn.Linear(int(K/2),classes)
         self.cel = nn.CrossEntropyLoss()
         self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         self.training = True
@@ -27,6 +28,7 @@ class Classification(MLPipeline):
 
     def forward(self, x):
         x = self.linear(x)
+        x = self.linear2(x)
         return x
 
     def backward(self, y_pred, y_true):

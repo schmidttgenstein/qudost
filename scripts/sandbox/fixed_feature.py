@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 
 import pdb 
 if __name__ == "__main__":
+    
     transf = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     # Load MNIST dataset
     mnist_train_dataset = MNIST(root='./data', train=False, transform=transf, download=True)

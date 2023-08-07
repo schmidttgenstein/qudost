@@ -15,15 +15,15 @@ import time
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-
+    ''''''
     transf = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,),(0.5,))])
     # Load MNIST dataset
     mnist_train_dataset = MNIST(root='./data', train=True, transform = transf, download=True)
     #mnist_val_dataset = MNIST(root='./data', train=False, transform =transf, download=False)
 
     # Random patch parameters, set patch size to None for variable patch size:
-    num_patches = 1
-    variance_threshold = 0.01
+    num_patches = 3
+    variance_threshold = 0.03
     patch_size = None
     start_time = time.time()
         # Initialize RandomPatches and generate random patches
@@ -33,7 +33,7 @@ if __name__ == "__main__":
     train_dataset = Featurization(mnist_train_dataset, patches, True, p = patch_size)
     
     #flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
-    scheme = None
+    scheme = 'parity'
     featurized_train_dataset = DataSetFlipLabel(train_dataset, scheme)
     featurized_train_dataset.__getitem__(0)
     

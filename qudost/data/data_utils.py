@@ -185,6 +185,8 @@ class DataSetFlipLabel:
             return squash_3(y)
         elif self.scheme == "squash_4":
             return squash_4(y)
+        elif self.scheme == "find_1":
+            return find_1(y)
         else:
             return y
     
