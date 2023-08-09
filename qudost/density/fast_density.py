@@ -133,20 +133,24 @@ class RegressionCDF(ECDF):
 
 
 class DensityNetwork(MLPipeline):
-    def __init__(self,epdf, epoch:int= 250, lr = 0.01, lamb=0.5):
+    def __init__(self,epdf, epoch:int= 250, lr = 0.01, lamb=0.5,sf = None):
         super().__init__(epochs = epoch, lr = lr )
-        self.params = nn.Parameter(torch.tensor(epdf.coeff,dtype = torch.float32,requires_grad = True))
+        params = torch.tensor(epdf.coeff,dtype = torch.float32) #,requires_grad = True)
+        if sf is None:
+            self.sf = 0*epdf.coeff + 1
+        else:
+            self.sf = torch.tensor(sf,dtype = torch.float32) 
+            params = self.sf * params 
+        self.params = nn.Parameter(params,requires_grad = True)
         self.lamb = lamb
         self.epdf = epdf
         self.activation = nn.Sigmoid() 
         self.opt = optim.Adam([self.params],lr = lr)
         self.loss_fun = nn.MSELoss()
-        #self.loss_fun = nn.L1Loss()
-        #self.loss_fun = nn.KLDivLoss()
     
     def mod_loss(self, y_score, y_truth, x_in):
-        ### CLEAN ME PLEASE :D 
-        p = self.poly_eval(x_in,self.params)
+        coeffs = self.params / self.sf 
+        p = self.poly_eval(x_in,coeffs)#self.params)
         sig = self.activation(p)
         epdf_cdf = 0 * sig
         for j,x in enumerate(x_in):
@@ -164,8 +168,9 @@ class DensityNetwork(MLPipeline):
     
     def forward(self,x_in):
         ### TOCA MANDAR ACA UN SIGMA INVERSE??
-        p = self.poly_eval(x_in,self.params)
-        p_prime = self.poly_derivative(x_in,self.params)
+        coeffs = self.params / self.sf 
+        p = self.poly_eval(x_in,coeffs)#self.params)
+        p_prime = self.poly_derivative(x_in,coeffs)#self.params)
         sig = self.activation(p)
         f = sig * (1-sig) * p_prime
         return f
@@ -191,7 +196,8 @@ class DensityNetwork(MLPipeline):
         return x_pre @ mult
     
     def net_cdf(self,x_in):
-        p = self.poly_eval(x_in,self.params)
+        coeffs = self.params / self.sf 
+        p = self.poly_eval(x_in,coeffs)
         sig = self.activation(p)
         return sig
 

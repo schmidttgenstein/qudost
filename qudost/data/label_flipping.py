@@ -31,3 +31,11 @@ def flip_mod_4_binary_label(label):
 
 def flip_0_to_4_binary_label(label):
     return int(label < 5)  # 1 if label is between 0-4 (inclusive), 0 otherwise
+
+def plus_1(label):
+    return int((label + 1) % 10)
+
+def squash_3(label):
+    return int(label//3)
+def squash_4(label):
+    return int(label//4)

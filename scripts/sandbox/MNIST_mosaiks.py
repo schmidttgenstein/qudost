@@ -9,61 +9,30 @@ from qudost.multitask.randomproj import *
 from torch.utils.data import DataLoader
 from qudost.data.data_utils import DataGenerator,  DataSetFlipLabel
 from qudost.base.arch import MLPipeline
-from qudost.data.label_flipping import * 
+from qudost.data.label_flipping import *
+from qudost.multitask.classification import Classification 
 import time
-
-class Classification(MLPipeline):
-    def __init__(self, epochs=10, lr=0.025, K = 50, classes = 2):
-        super().__init__(epochs=epochs, lr=lr,print_mod = 5)
-        self.linear = nn.Linear(K, classes)  #Adjust the input size based on the number of patches used and # of classes for task
-        #self.linear2 = nn.Linear(10,classes)
-        self.cel = nn.CrossEntropyLoss()
-        self.optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        self.training = True
-
-    def loss(self, y_pred, y_true):
-        return self.cel(y_pred,y_true)   
-
-    def forward(self, x):
-        x = self.linear(x)
-        return x
-
-    def backward(self, y_pred, y_true):
-        #return none for gradient because arch (trainstep) expects it
-        self.optimizer.zero_grad()
-        loss = self.loss(y_pred, y_true)
-        loss.backward()
-        return None, loss.detach().item()
-
-
-    def update(self, grad=None):
-        self.optimizer.step()
-
-    def metrics(self, y_pred, y_true,loss=-1):
-        with torch.no_grad():
-            y_pred = torch.argmax(y_pred,1)  
-        return np.array([loss,(y_pred == y_true).numpy().mean()])
-
-    def print_update(self,epoch,results):
-        print(f"ep {epoch} with tr loss: {results[0]:.3f}, tr acc: {results[1]:.3f}, val acc: {results[3]:.3f}")
 
 if __name__ == "__main__":
 
     transf = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,),(0.5,))])
     # Load MNIST dataset
-    mnist_train_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=True, transform = transf, download=True)
-    mnist_val_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=False, transform =transf, download=True)
+    mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
+    mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
+    #mnist_train_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=True, transform = transf, download=True)
+    #mnist_val_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=False, transform =transf, download=True)
 
-    # Random patch parameters
-    num_patches = 150
+    # Random patch parameters, set patch size to None for variable patch size:
+    num_patches = 50
+    patch_size = None
     start_time = time.time()
         # Initialize RandomPatches and generate random patches
-    random_patches = RandomPatches(mnist_train_dataset, K=num_patches)
+    random_patches = RandomPatches(mnist_train_dataset, K = num_patches, p = patch_size)
     patches = random_patches.random_patches()
 
     # Create featurized dataset
-    featurized_train_dataset = Featurization(mnist_train_dataset, patches,True)
-    featurized_val_dataset = Featurization(mnist_val_dataset, patches,True)
+    featurized_train_dataset = Featurization(mnist_train_dataset, patches, True, p = patch_size)
+    featurized_val_dataset = Featurization(mnist_val_dataset, patches, True, p = patch_size)
     end_time = time.time()
     featurize_time = end_time - start_time
     print("Featurization Time = ", featurize_time, ' seconds')
@@ -86,10 +55,12 @@ if __name__ == "__main__":
         # Determine the number of classes based on the scheme
         if scheme in ["parity", "primality", "loops", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]:
             num_classes = 2
-        elif scheme == "mod_3":
+        elif scheme in ["squash_4","mod_3"]:
             num_classes = 3
-        elif scheme == "mod_4":
+        elif scheme in  ["squash_3","mod_4"]:
             num_classes = 4
+        elif scheme == "plus_1":
+            num_classes = 10
         elif scheme is None:
             num_classes = 10
 

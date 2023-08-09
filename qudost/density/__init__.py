@@ -1,1 +1,1 @@
-from .fit_density import EPDF, ECDF, RegressionCDF, DensityNetwork
+from .fast_density import EPDF, ECDF, RegressionCDF, DensityNetwork
