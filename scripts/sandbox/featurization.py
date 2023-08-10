@@ -16,15 +16,10 @@ import pickle
 import matplotlib.pyplot as plt
 import yaml
 
-def load_config(user):
-    with open("\config.yaml", 'r') as stream:
-        config = yaml.safe_load(stream)
-        return config.get(user, config['default'])
+
 if __name__ == "__main__":
     dataset = 'CIFAR10' #CIFAR10 or MNIST
-    user = 'Zan'
-    config = load_config(user)
-    data_dir = config['data_dir']
+   
     # Load  dataset
     #mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
     #mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
