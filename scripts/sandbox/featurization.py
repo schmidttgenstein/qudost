@@ -14,17 +14,30 @@ from qudost.multitask.classification import Classification
 import time
 import pickle
 import matplotlib.pyplot as plt
+import yaml
 
+def load_config(user):
+    with open("\config.yaml", 'r') as stream:
+        config = yaml.safe_load(stream)
+        return config.get(user, config['default'])
 if __name__ == "__main__":
-
-    transf = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,),(0.5,))])
-    # Load MNIST dataset
+    dataset = 'CIFAR10' #CIFAR10 or MNIST
+    user = 'Zan'
+    config = load_config(user)
+    data_dir = config['data_dir']
+    # Load  dataset
     #mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
     #mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
     #mnist_train_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=True, transform = transf, download=True)
     #mnist_val_dataset = MNIST(root='C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\data\\', train=False, transform =transf, download=True)
-    train_dataset = CIFAR10(root='./data', train=True, transform = transf, download=True)
-    val_dataset = CIFAR10(root='./data', train=False, transform =transf, download=True)
+    transf = transforms.Compose([transforms.ToTensor(),transforms.Normalize((0.5,),(0.5,))])
+
+    if dataset == 'CIFAR10':
+        train_dataset = CIFAR10(root='./data', train=True, transform = transf, download=True)
+        val_dataset = CIFAR10(root='./data', train=False, transform =transf, download=True)
+    elif dataset == 'MNIST':
+        train_dataset = MNIST(root='./data', train=True, transform = transf, download=True)
+        val_dataset = MNIST(root='./data', train=False, transform =transf, download=True)
     # Random patch parameters, set patch size to None for variable patch size:
     num_patches = 5
     num_histos = 5
