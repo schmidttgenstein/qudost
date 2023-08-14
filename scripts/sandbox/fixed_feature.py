@@ -13,6 +13,7 @@ from qudost.multitask.randomproj import Featurization
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
+    
     transf = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
     # Load MNIST dataset
     mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform=transf, download=False)
@@ -22,7 +23,7 @@ if __name__ == "__main__":
     cifar_train_dataset = CIFAR10(root = '/Users/schmiaj1/Documents/JHU/data/', train = True,transform = transform, download = True)
    
     patch_size = 7
-    shape_type = 'inv_one'
+    shape_type = 'u_shape'
     # center_size = 10  # Adjust the size of the white center
 
     filter_generator = CustomFilterGenerator(patch_size)
