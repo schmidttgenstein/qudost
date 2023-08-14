@@ -85,23 +85,16 @@ class ECDF:
         return x_pre @ mult
 
     def interval(self, p_value):
-        ### self.data x_arg which realizes p_value with ecdf_point
-        #sorted_x = torch.sort(x_in)[0]
         idx_left = np.argmin(np.abs((1-p_value)/2 - self.cdf))
         x_left = self.data[idx_left]
         idx_right = np.argmin(np.abs(p_value +(1-p_value)/2 - self.cdf))
         x_right = self.data[idx_right]
-        #index = int(p_value*x_in.size(0))
-        #x_left = sorted_x[0]
-        #x_right = sorted_x[index]
         return x_left, x_right
     
     def prob_interval(self, x_in, interval):
-        #total_points = x_in.size(0)
-        #points_within = torch.sum((x_in >= interval[0]) & (x_in <= interval[1]))
         F_left = self.ecdf_point(interval[0],x_in)
         F_right = self.ecdf_point(interval[1],x_in)
-        return  F_right - F_left #points_within/total_points
+        return  F_right - F_left 
 
 class EPDF(ECDF):
     def __init__(self,data):
@@ -150,13 +143,11 @@ class DensityNetwork(MLPipeline):
     
     def mod_loss(self, y_score, y_truth, x_in):
         coeffs = self.params / self.sf 
-        p = self.poly_eval(x_in,coeffs)#self.params)
+        p = self.poly_eval(x_in,coeffs)
         sig = self.activation(p)
         epdf_cdf = 0 * sig
         for j,x in enumerate(x_in):
             epdf_cdf[j] = self.epdf.ecdf_point(x) 
-        
-        #loss = self.lamb*((1+y_truth)*(y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
         loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
         return loss
     
@@ -178,7 +169,6 @@ class DensityNetwork(MLPipeline):
     def backward(self,y_score,y_truth, x_in):
         self.opt.zero_grad()
         loss = self.mod_loss(y_score,y_truth, x_in)
-        #loss = self.loss_fun(y_score,y_truth)
         loss.backward()
 
     def update(self,grad = None):
