@@ -99,7 +99,8 @@ def gau_mix(fit_samples,n_mixtures = 1):
     return gmm
 
 if __name__ == "__main__":
-    wandb.login()
+    #DO NOT ERASE
+    #wandb.login()
     np.random.seed(1) # 125 is two almost separated classes
     fname = str(time.time())
     N =  int(10**5)
@@ -121,17 +122,9 @@ if __name__ == "__main__":
     scale_factor = 10**(-np.round(np.log10(np.abs(poly_coeff))))
 
     p = epdf_train.poly_eval(x,poly_coeff)
-  
-    ''' 
-    plt.figure(1)
-    plt.plot(x,y, label = 'sigma inverse cdf')
-    plt.plot(x,p, label = 'polynomial')
-    plt.title("Sigma inverse regression")
-    plt.legend() '''
-
-    #WANDB
 
     epoch, lr, lamb = 500, 0.005, .5
+    #WANDB DO NOT ERASE
     '''
     sweep_config = {'method':'random'}
     metric = {'name': 'loss', 'goal': 'minimize'}
