@@ -8,7 +8,7 @@ from random import shuffle
 from scipy import optimize, stats
 import timeit
 
-def read_json_file(file_path):
+def read_json_featurization(file_path):
     try:
         with open(file_path, 'r') as file:
             data = json.load(file)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     class_label = str(0) # Ranging from 0 to 9
     #print(patch_0_feature_values)
     path = "feature_values_by_patches.json"
-    feature_values_by_patches = read_json_file(path)
+    feature_values_by_patches = read_json_featurization(path)
     data = feature_values_by_patches[patch][class_label]
     shuffle(data)
     patch_class = torch.tensor(data)
