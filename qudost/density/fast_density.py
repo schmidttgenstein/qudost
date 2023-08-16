@@ -130,7 +130,7 @@ class DensityNetwork(MLPipeline):
         super().__init__(epochs = epoch, lr = lr )
         params = torch.tensor(epdf.coeff,dtype = torch.float32) #,requires_grad = True)
         if sf is None:
-            self.sf = 0*epdf.coeff + 1
+            self.sf = torch.tensor(0*epdf.coeff + 1,dtype = torch.float32)
         else:
             self.sf = torch.tensor(sf,dtype = torch.float32) 
             params = self.sf * params 
