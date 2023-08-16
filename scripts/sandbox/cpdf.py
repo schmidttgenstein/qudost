@@ -4,6 +4,7 @@ import os
 import time
 import sys
 import json
+import wandb
 import matplotlib.pyplot as plt
 from scipy.signal import argrelextrema
 from sklearn.preprocessing import PolynomialFeatures
@@ -13,6 +14,7 @@ from qudost.density import ECDF, EPDF, RegressionCDF, DensityNetwork
 from qudost.data import DataSet, DataLoader, DataGenerator
 from torch.utils.data import DataLoader as TorchDataLoader
 
+wandb.login()
 
 def fat_tail(N = 10000, split=0.5, tor = False):
     y = np.random.random(N)
@@ -97,6 +99,7 @@ def gau_mix(fit_samples,n_mixtures = 1):
     return gmm
 
 if __name__ == "__main__":
+    wandb.login()
     np.random.seed(1) # 125 is two almost separated classes
     fname = str(time.time())
     #path_dir = "C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\qudost\\experiments\\"+fname+"\\"
@@ -138,7 +141,17 @@ if __name__ == "__main__":
     plt.legend() '''
     #plt.savefig(path_dir+"1_sigma_inverse.png")
 
-    epoch, lr, lamb = 500, 0.0005, .5
+    #WANDB
+
+    epoch, lr, lamb = 500, 0.005, .5
+    sweep_config = {'method':'random'}
+    metric = {'name': 'loss', 'goal': 'minimize'}
+    parameters_dict = {'lambda': {'values': [0.3, 0.5, 0.7]}, 'learning_rate': {'distribution': 'uniform','max': 0.1,'min': 0}, 'epochs': [100, 200, 500, 1000]}
+    sweep_config['metric'] = metric
+    sweep_config['parameters'] = parameters_dict
+    sweep_id = wandb.sweep(sweep_config, project="cpdf")
+    run = wandb.init(project="cpdf", config={"learning_rate": lr, "epochs": epoch, "lambda": lamb})
+
     dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb,sf = scale_factor)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
     dl_tr = DataLoader(ds,batch_size = 100)

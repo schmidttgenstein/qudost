@@ -31,7 +31,7 @@ class ECDF:
         ## standin for later filtering
         return self.data
     
-    def ecdf(self,x = None, alpha = 100):
+    def ecdf(self,x = None, alpha = 1000):
         if x is None:
             x = self.get_domain(eps = 0.001)
         else:
@@ -39,7 +39,7 @@ class ECDF:
         m = x.shape[0]
         F = np.zeros(m)
         for j,xj in enumerate(x):
-            F[j] = (j+1)/m #self.ecdf_point(xj,x)
+            F[j] = (j+1)/m 
         x_interpolated, F_interpolated = self.fill_gaps(x, F, alpha)
         return x_interpolated, F_interpolated
     
@@ -91,9 +91,6 @@ class ECDF:
         x_left = self.data[idx_left]
         idx_right = np.argmin(np.abs(p_value +(1-p_value)/2 - self.cdf))
         x_right = self.data[idx_right]
-        #index = int(p_value*x_in.size(0))
-        #x_left = sorted_x[0]
-        #x_right = sorted_x[index]
         return x_left, x_right
     
     def prob_interval(self, x_in, interval):
@@ -147,17 +144,18 @@ class DensityNetwork(MLPipeline):
         self.activation = nn.Sigmoid() 
         self.opt = optim.Adam([self.params],lr = lr)
         self.loss_fun = nn.MSELoss()
+
+    def neg_pen(self, y_score, a=1e2, b=2):
+        return torch.where(y_score < 0, b*torch.exp(-1/a*(y_score)), torch.zeros_like(y_score))
     
     def mod_loss(self, y_score, y_truth, x_in):
         coeffs = self.params / self.sf 
-        p = self.poly_eval(x_in,coeffs)#self.params)
+        p = self.poly_eval(x_in,coeffs)
         sig = self.activation(p)
         epdf_cdf = 0 * sig
         for j,x in enumerate(x_in):
             epdf_cdf[j] = self.epdf.ecdf_point(x) 
-        
-        #loss = self.lamb*((1+y_truth)*(y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
-        loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() 
+        loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() + self.neg_pen(y_score).mean()
         return loss
     
 
@@ -167,10 +165,9 @@ class DensityNetwork(MLPipeline):
         return loss
     
     def forward(self,x_in):
-        ### TOCA MANDAR ACA UN SIGMA INVERSE??
         coeffs = self.params / self.sf 
-        p = self.poly_eval(x_in,coeffs)#self.params)
-        p_prime = self.poly_derivative(x_in,coeffs)#self.params)
+        p = self.poly_eval(x_in,coeffs)
+        p_prime = self.poly_derivative(x_in,coeffs)
         sig = self.activation(p)
         f = sig * (1-sig) * p_prime
         return f
@@ -178,7 +175,6 @@ class DensityNetwork(MLPipeline):
     def backward(self,y_score,y_truth, x_in):
         self.opt.zero_grad()
         loss = self.mod_loss(y_score,y_truth, x_in)
-        #loss = self.loss_fun(y_score,y_truth)
         loss.backward()
 
     def update(self,grad = None):
