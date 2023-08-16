@@ -39,7 +39,7 @@ def gen_data(n_data=10000,n_mixtures = 1,split = 0.5,tor = False):
     datas = []
     for j in range(n_mixtures):
         m = np.random.normal(0,5)
-        s = np.random.lognormal()
+        s = 2*np.random.lognormal()
         data = np.random.normal(m,s,n_data)
         datas.append(data)
     data = np.concatenate(datas)
@@ -102,27 +102,15 @@ if __name__ == "__main__":
     wandb.login()
     np.random.seed(1) # 125 is two almost separated classes
     fname = str(time.time())
-    #path_dir = "C:\\Users\\juand\\OneDrive - Johns Hopkins\\JHU\\2023.Summer\\James Research\\qudost\\experiments\\"+fname+"\\"
-    #os.mkdir(path_dir)
-    N =  100000
-    mix = 2
-    ##### WITH DATAGENERATOR
+    N =  int(10**5)
+    mix = 3
     gen_dat = DataGenerator(N, n_mixture = mix, split = .5, tor = True)
     x_tr, x_te = gen_dat.gmm_data()
-    type_data = "gaussian mixture"
-    #x_tr, x_te = gen_dat.fat_tail(thick = 0.5, trim = 20)
-    #type_data = "fat tail"
-    #x_tr, x_te = gen_dat.cauchy(trim = 25)
-    #type_data = "cauchy"
+    type_data = "gaussian mixture" 
 
-    #path = path_dir+fname
-    #n_modes, range_dom = mix, [-5,5]
-    #domain, cdf, pdf = simulate_multimodal_cdf(n_modes, range_dom, resolution=N)
-    #x_tr, x_te = inverse_transform_sampling(domain, cdf, num_samples=N, split = .5)
     epdf_eval = EPDF(x_te)
     epdf_train = EPDF(x_tr)
     a_temp = argrelextrema(epdf_train.h.detach().numpy(),np.greater)
-    #deg = a_temp[0].shape[0]*2 + 3
     deg = 5
     reg = RegressionCDF(epdf_train.cdf, epdf_train.x_domain,degree = deg)
     x,F = epdf_train.filter_cdf(0.00001)
@@ -133,13 +121,13 @@ if __name__ == "__main__":
     scale_factor = 10**(-np.round(np.log10(np.abs(poly_coeff))))
 
     p = epdf_train.poly_eval(x,poly_coeff)
+  
     ''' 
     plt.figure(1)
     plt.plot(x,y, label = 'sigma inverse cdf')
     plt.plot(x,p, label = 'polynomial')
     plt.title("Sigma inverse regression")
     plt.legend() '''
-    #plt.savefig(path_dir+"1_sigma_inverse.png")
 
     #WANDB
 
@@ -159,39 +147,37 @@ if __name__ == "__main__":
     dl_eval = DataLoader(dse,batch_size = 50)
     
     orig_stdout = sys.stdout
-    #f = open(path_dir+'out.txt', 'w')
-    #sys.stdout = f
     
     dn.fit(dl_tr,dl_eval)
-    #sys.stdout = orig_stdout
-    #f.close()
 
-    plt.figure(2)
+
     #f_eval = dn.forward(x_te.clone())
-    f_eval = dn.forward(torch.tensor(x_te,dtype = torch.float32).detach())
-    plt.plot(x_te,f_eval.detach().numpy(), 'bo')
+    if isinstance(x_te,torch.Tensor):
+        x_te = x_te.clone().detach().float()
+    else:
+        x_te = torch.tensor(x_te,dtype = torch.float32)
+    '''
+    plt.figure(2)
+    f_eval = dn.forward(x_te)
+    plt.plot(x_te,f_eval.clone().detach().numpy(), 'bo')
     plt.hist(x_tr,bins = 150,density = True)
     plt.title("Histogram and model")
-    #plt.savefig(path_dir+"2_histogram.png")
+    #plt.savefig(path_dir+"2_histogram.png") '''
 
     gmm = gau_mix(x, mix)
     logprob = gmm.score_samples(epdf_train.t.reshape(epdf_train.t.shape[0],1))
     gmm_pdf = np.exp(logprob)
 
+    ''' 
     plt.figure(3)
     plt.plot(epdf_train.t,epdf_train.h,'.', label = 'train histo')
-    plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo')
-    #pp = epdf_train.poly_derivative(epdf_train.t,poly_coeff)
-    #sig = epdf_train.sigma(epdf_train.poly_eval(epdf_train.t,poly_coeff))
-    #f = sig * (1-sig) * pp
-    #parameters = dn.params.clone().detach().numpy()
-    #pp = epdf_train.poly_derivative(epdf_train.t,parameters)
-    #p_e = epdf_train.poly_eval(epdf_train.t,parameters)
-    #print("************************************",p_e)
-    #sig = epdf_train.sigma(epdf_train.poly_eval(epdf_train.t,parameters))
-    #f = sig * (1-sig) * pp
-    f2 = dn.forward(torch.tensor(epdf_train.t,dtype = torch.float32).detach())
-    #plt.plot(epdf_train.t,f, label = 'model')
+    plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo') '''
+    ####
+    if isinstance(epdf_train.t,torch.Tensor):
+        epdft = epdf_train.t.clone().detach().float()
+    else:
+        epdft = torch.tensor(epdf_train.t,dtype = torch.float32)
+    f2 = dn.forward(epdft)
     plt.plot(epdf_train.t,gmm_pdf, label = 'GMM')
     plt.plot(epdf_train.t,f2.detach(),label = 'actual model')
     pp = epdf_eval.poly_eval(epdf_train.t,poly_coeff)
@@ -207,39 +193,5 @@ if __name__ == "__main__":
     plt.plot(x, dn.activation(torch.tensor(p)), label = 'Linear Reg CDF')
     plt.legend()
     plt.title("CDF's")
-    #plt.savefig(path_dir+"4_cdfs.png")
-    '''
-    plt.figure(6)
-    # define subplot grid
-    fig, axs = plt.subplots(nrows=3, ncols=3, figsize=(15, 12))
-    plt.subplots_adjust(hspace=0.5)
-    fig.suptitle("GMM", fontsize=18, y=0.95)
-    mixtures = [1,2,3,4,5,6,7,8,9]
-    # loop through tickers and axes
-    for mix, ax in zip(mixtures, axs.ravel()):
-        gmm = gau_mix(x, mix)
-        logprob = gmm.score_samples(epdf_train.t.reshape(epdf_train.t.shape[0],1))
-        gmm_pdf = np.exp(logprob)
-        ax.plot(epdf_train.t,epdf_train.h,'.', label = 'train histo')
-        ax.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo')
-        pp = epdf_train.poly_derivative(epdf_train.t,poly_coeff)
-        sig = epdf_train.sigma(epdf_train.poly_eval(epdf_train.t,poly_coeff))
-        f = sig * (1-sig) * pp
-        ax.plot(epdf_train.t,f, label = 'model')
-        ax.plot(epdf_train.t,gmm_pdf, label = 'GMM')
-    '''
-    p_value = 0.999
-    ''' 
-    #x_tr = torch.tensor(x_tr, dtype = torch.float32).detach()
-    #x_te = torch.tensor(x_te, dtype = torch.float32).detach()
-    interval_tr =dn.epdf.interval( p_value)
-    te_dom_valid_pr =  dn.epdf.prob_interval(x_te,interval_tr)
-    print('Train interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_train.t, epdf_train.h, interval_tr))
-    #print('Test interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_eval.t, epdf_eval.h, interval_tr))
-    parameters_data = {'data':type_data, 'number_samples':N, 'n_mixture':mix, 'degree':deg, 'learning_rate':lr, 'epochs':epoch, "lambda": lamb}
-    with open(path_dir+'parameters_data.json', 'w') as file:
-        json.dump(parameters_data, file, indent=4)
-    plt.show() '''
-
-
-    ### some of the todos: 
+    plt.show()
+   
