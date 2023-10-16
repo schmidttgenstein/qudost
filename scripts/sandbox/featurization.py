@@ -14,16 +14,12 @@ from qudost.multitask.classification import Classification
 import time
 import pickle
 import matplotlib.pyplot as plt
-import yaml
+
 
 
 if __name__ == "__main__":
-<<<<<<< HEAD
     dataset = 'MNIST' #CIFAR10 or MNIST
-=======
-    dataset = 'CIFAR10' #CIFAR10 or MNIST
    
->>>>>>> dadaabbe4ec8bf2993320ce2c1af04936582091e
     # Load  dataset
     #mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
     #mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
@@ -46,71 +42,7 @@ if __name__ == "__main__":
         # Initialize RandomPatches and generate random patches
     random_patches = RandomPatches(train_dataset, threshold = threshold, K = num_patches, p = patch_size)
     patches = random_patches.random_patches()
-    '''
-    def zca_whitening(patches):
-    # Handle the case when patches are a dictionary
-        if isinstance(patches, dict):
-            whitened_patches = {}
-            for key in patches.keys():
-                patch_tensor = patches[key]
-                whitened_patch_tensor = _whiten_patches(patch_tensor)
-                whitened_patches[key] = whitened_patch_tensor
-            return whitened_patches
-        # Handle the case when patches are stacked in a tensor
-        else:
-            return _whiten_patches(patches)
-
-    def _whiten_patches(patch_tensor):
-        # Flatten patches
-        original_shape = patch_tensor.shape
-        flattened_patches = patch_tensor.view(original_shape[0], -1).numpy()
-        
-        # Compute the covariance matrix
-        cov_matrix = np.cov(flattened_patches, rowvar=False)
-        
-        # Perform SVD on the covariance matrix
-        U, S, _ = np.linalg.svd(cov_matrix)
-        
-        # Compute the whitened patches
-        epsilon = 1e-5  # To avoid division by zero
-        whitening_matrix = np.dot(U, np.dot(np.diag(1.0 / np.sqrt(S + epsilon)), U.T))
-        whitened_patches = np.dot(flattened_patches, whitening_matrix.T)
-        
-        # Reshape whitened patches back to their original shape
-        whitened_patch_tensor = torch.tensor(whitened_patches).view(original_shape)
-        
-        return whitened_patch_tensor
-    patches = zca_whitening(patches)
-   
-    def zca_whitening(patches):
-        # Flatten the patches
-        patches_flat = patches.reshape(patches.shape[0], -1)
-        
-        # Compute mean and center the data
-        mean = patches_flat.mean(axis=0)
-        patches_centered = patches_flat - mean
-        
-        # Compute covariance matrix
-        covariance = np.cov(patches_centered, rowvar=False)
-        
-        # Compute eigenvalues and eigenvectors
-        eigenvalues, eigenvectors = np.linalg.eigh(covariance)
-        
-        # Add a small constant for numerical stability
-        epsilon = 1e-5
-        
-        # Compute the whitening matrix
-        whitening_matrix = np.dot(eigenvectors, np.diag(1.0 / np.sqrt(eigenvalues + epsilon)))
-        
-        # Whitening transformation
-        patches_whitened_flat = np.dot(patches_centered, whitening_matrix)
-        
-        # Reshape the whitened data to original shape
-        patches_whitened = patches_whitened_flat.reshape(patches.shape)
-        
-        return patches_whitened
-    whitened_patches = zca_whitening(patches)
-    '''
+    
     # Create featurized dataset
     featurized_train_dataset = Featurization(train_dataset, patches, num_patches, True, p = patch_size)
     featurized_val_dataset = Featurization(val_dataset, patches, num_patches, True, p = patch_size)
