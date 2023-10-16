@@ -18,7 +18,12 @@ import yaml
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
     dataset = 'MNIST' #CIFAR10 or MNIST
+=======
+    dataset = 'CIFAR10' #CIFAR10 or MNIST
+   
+>>>>>>> dadaabbe4ec8bf2993320ce2c1af04936582091e
     # Load  dataset
     #mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
     #mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
