@@ -151,7 +151,7 @@ class DensityNetwork(MLPipeline):
         epdf_cdf = 0 * sig
         for j,x in enumerate(x_in):
             epdf_cdf[j] = self.epdf.ecdf_point(x) 
-        loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() + self.neg_pen(y_score).mean()
+        loss = self.lamb*((y_score-y_truth)**2).mean() + (1-self.lamb)*((sig-epdf_cdf)**2).mean() # + self.neg_pen(y_score).mean()
         return loss
     
 

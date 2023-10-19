@@ -157,7 +157,7 @@ if __name__ == "__main__":
     plt.legend()
     plt.title("Densities")
     
-    plt.figure(2)
+    plt.figure(3)
     plt.plot(epdf_train.domain,epdf_train.cdf, label = 'Actual CDF')
     plt.plot(x,dn.net_cdf(torch.tensor(x,dtype = torch.float32)).detach().numpy(), label = 'model CDF')
     plt.plot(x, dn.activation(torch.tensor(epdf_train.poly_eval(x,epdf_train.coeff))), label = 'Linear Reg CDF')
