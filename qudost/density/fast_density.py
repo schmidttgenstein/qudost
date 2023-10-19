@@ -86,9 +86,9 @@ class ECDF:
 
     def interval(self, p_value):
         idx_left = np.argmin(np.abs((1-p_value)/2 - self.cdf))
-        x_left = self.data[idx_left]
+        x_left = self.x_domain[idx_left]
         idx_right = np.argmin(np.abs(p_value +(1-p_value)/2 - self.cdf))
-        x_right = self.data[idx_right]
+        x_right = self.x_domain[idx_right]
         return x_left, x_right
     
     def prob_interval(self, x_in, interval):
