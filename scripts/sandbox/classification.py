@@ -17,23 +17,23 @@ from torch.utils.data import Subset
 
 if __name__ == "__main__":
     # Load the datasets
-    with open("MNISTfeaturized_train_dataset.pkl", "rb") as f:
+    with open("train.pkl", "rb") as f:
         featurized_train_dataset = pickle.load(f)
 
-    with open("MNISTfeaturized_val_dataset.pkl", "rb") as f:
+    with open("test.pkl", "rb") as f:
         featurized_val_dataset = pickle.load(f)
     
     
     # Modify the datasets to keep only the first 25 features
     for idx in featurized_train_dataset.x_data:
-        featurized_train_dataset.x_data[idx] = featurized_train_dataset.x_data[idx][1000:1100]
+        featurized_train_dataset.x_data[idx] = featurized_train_dataset.x_data[idx][:250]
 
     for idx in featurized_val_dataset.x_data:
-        featurized_val_dataset.x_data[idx] = featurized_val_dataset.x_data[idx][1000:1100]
+        featurized_val_dataset.x_data[idx] = featurized_val_dataset.x_data[idx][:250]
     
     
-    #flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
-    flipping_schemes = ['find_0', 'find_1', 'find_2', 'find_3', 'find_4', 'find_5', 'find_6', 'find_7', 'find_8', 'find_9']
+    flipping_schemes = [None, "parity", "primality", "loops", "mod_3", "mod_4", "mod_3_binary", "mod_4_binary", "0_to_4_binary"]
+    #flipping_schemes = ['find_0', 'find_1', 'find_2', 'find_3', 'find_4', 'find_5', 'find_6', 'find_7', 'find_8', 'find_9']
     results = []
 
     for scheme in flipping_schemes:
@@ -53,7 +53,7 @@ if __name__ == "__main__":
             num_classes = 3
         elif scheme in  ["squash_3","mod_4"]:
             num_classes = 4
-        elif scheme == [None, "plus_1"]:
+        elif scheme in [None, "plus_1"]:
             num_classes = 10
        
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
         val_loader.num_batches = int(np.ceil(val_flipped_labels.__len__() / batch_size))
 
         # Create an instance of MLPipeline for classification
-        pipeline = Classification(epochs = 125, lr = 0.025, K = len(featurized_train_dataset[0][0]), classes = num_classes)
+        pipeline = Classification(epochs = 1000, lr = 0.001, K = len(featurized_train_dataset[0][0]), classes = num_classes)
 
         # Fit the MLPipeline on the dataset
         results_array = pipeline.fit(train_loader, val_loader,printing = True)

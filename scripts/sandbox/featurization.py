@@ -18,8 +18,12 @@ import yaml
 
 
 if __name__ == "__main__":
+<<<<<<< HEAD
+    dataset = 'MNIST' #CIFAR10 or MNIST
+=======
     dataset = 'CIFAR10' #CIFAR10 or MNIST
    
+>>>>>>> dadaabbe4ec8bf2993320ce2c1af04936582091e
     # Load  dataset
     #mnist_train_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=True, transform = transf, download=True)
     #mnist_val_dataset = MNIST(root='/Users/schmiaj1/Documents/JHU/data/', train=False, transform =transf, download=True)
@@ -34,8 +38,8 @@ if __name__ == "__main__":
         train_dataset = MNIST(root='./data', train=True, transform = transf, download=True)
         val_dataset = MNIST(root='./data', train=False, transform =transf, download=True)
     # Random patch parameters, set patch size to None for variable patch size:
-    num_patches = 5
-    num_histos = 5
+    num_patches = 2
+    num_histos = 2
     threshold = None
     patch_size = None
     start_time = time.time()
@@ -77,8 +81,7 @@ if __name__ == "__main__":
         
         return whitened_patch_tensor
     patches = zca_whitening(patches)
-    '''
-    '''
+   
     def zca_whitening(patches):
         # Flatten the patches
         patches_flat = patches.reshape(patches.shape[0], -1)
@@ -114,13 +117,13 @@ if __name__ == "__main__":
     end_time = time.time()
     featurize_time = end_time - start_time
     print("Featurization Time = ", featurize_time, ' seconds')
-    with open("MNISTfeaturized_train_dataset.pkl", "wb") as f:
+    with open("train.pkl", "wb") as f:
         pickle.dump(featurized_train_dataset, f)
 
-    with open("MNISTfeaturized_val_dataset.pkl", "wb") as f:
+    with open("test.pkl", "wb") as f:
         pickle.dump(featurized_val_dataset, f)
 
-    with open("patches.pkl","wb") as f: 
+    with open("ptchs.pkl","wb") as f: 
         pickle.dump(patches,f)
 
     scheme = None
