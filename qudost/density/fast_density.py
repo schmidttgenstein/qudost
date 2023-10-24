@@ -14,12 +14,9 @@ class ECDF:
         data, _  = data.sort()
         self.data = data 
         self.m = data.shape[0]
-        self.x_domain, self.cdf = self.ecdf()
+        self.x_domain, self.cdf = self.ecdf(data)
     
-    def domain(self,):
-        i = 0 
-        domain = []
-    
+
     def ecdf_point(self,x,data=None):
         if data is None:
             data = self.data 
@@ -34,14 +31,15 @@ class ECDF:
     def ecdf(self,x = None, alpha = 1000):
         if x is None:
             x = self.get_domain(eps = 0.001)
-        else:
-            x.sort()
+        x.sort()
         m = x.shape[0]
-        F = np.zeros(m)
+        F = np.linspace(0,1,m)
+        ''' want interpolation for ecdf? 
         for j,xj in enumerate(x):
             F[j] = (j+1)/m 
         x_interpolated, F_interpolated = self.fill_gaps(x, F, alpha)
-        return x_interpolated, F_interpolated
+        '''
+        return x,F
     
     def fill_gaps(self, x, F, alpha):
         x_interpolated = [x[0]]
