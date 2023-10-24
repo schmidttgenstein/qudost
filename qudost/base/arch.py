@@ -38,7 +38,7 @@ class MLPipeline(nn.Module):
 
     def train_step(self,x_in,y_truth):
         y_score = self.forward(x_in)
-        grad = self.backward(y_score,y_truth)
+        grad = self.backward(y_score,y_truth,x_in)
         self.update(grad)
         return y_score
 
@@ -71,4 +71,3 @@ class MLPipeline(nn.Module):
         te_dat = vm_array[:,0].mean()
         diff = np.abs(tr_dat - te_dat)
         return diff,tr_dat, te_dat
-    

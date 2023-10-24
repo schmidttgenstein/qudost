@@ -1,20 +1,20 @@
 import torch
 import numpy as np 
 import os
-import time
+import timeit
 import sys
 import json
-import wandb
 import matplotlib.pyplot as plt
 from scipy.signal import argrelextrema
+from scipy import optimize, stats
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
 from qudost.density import ECDF, EPDF, RegressionCDF, DensityNetwork
 from qudost.data import DataSet, DataLoader, DataGenerator
+from qudost.random import density_projection
 from torch.utils.data import DataLoader as TorchDataLoader
 
-wandb.login()
 
 def fat_tail(N = 10000, split=0.5, tor = False):
     y = np.random.random(N)
@@ -39,7 +39,7 @@ def gen_data(n_data=10000,n_mixtures = 1,split = 0.5,tor = False):
     datas = []
     for j in range(n_mixtures):
         m = np.random.normal(0,5)
-        s = 2*np.random.lognormal()
+        s = np.random.lognormal()
         data = np.random.normal(m,s,n_data)
         datas.append(data)
     data = np.concatenate(datas)
@@ -98,95 +98,93 @@ def gau_mix(fit_samples,n_mixtures = 1):
     gmm.fit(fit_samples)
     return gmm
 
-if __name__ == "__main__":
-    #DO NOT ERASE
-    #wandb.login()
-    np.random.seed(1) # 125 is two almost separated classes
-    fname = str(time.time())
-    N =  int(10**5)
-    mix = 3
-    gen_dat = DataGenerator(N, n_mixture = mix, split = .5, tor = True)
-    x_tr, x_te = gen_dat.gmm_data()
-    type_data = "gaussian mixture" 
-
+def regression(x_tr,x_te,deg):
+    #ECDF - Linear Regression
     epdf_eval = EPDF(x_te)
     epdf_train = EPDF(x_tr)
-    a_temp = argrelextrema(epdf_train.h.detach().numpy(),np.greater)
-    deg = 5
     reg = RegressionCDF(epdf_train.cdf, epdf_train.x_domain,degree = deg)
     x,F = epdf_train.filter_cdf(0.00001)
     _,y = epdf_train.sigma_inverse(F)
     model, poly_coeff, ypdf = reg.linear_regression(x,y)
     epdf_eval.coeff = poly_coeff
     epdf_train.coeff = poly_coeff
-    scale_factor = 10**(-np.round(np.log10(np.abs(poly_coeff))))
+    return epdf_eval, epdf_train
 
-    p = epdf_train.poly_eval(x,poly_coeff)
-
-    epoch, lr, lamb = 500, 0.005, .5
-    #WANDB DO NOT ERASE
-    '''
-    sweep_config = {'method':'random'}
-    metric = {'name': 'loss', 'goal': 'minimize'}
-    parameters_dict = {'lambda': {'values': [0.3, 0.5, 0.7]}, 'learning_rate': {'distribution': 'uniform','max': 0.1,'min': 0}, 'epochs': [100, 200, 500, 1000]}
-    sweep_config['metric'] = metric
-    sweep_config['parameters'] = parameters_dict
-    sweep_id = wandb.sweep(sweep_config, project="cpdf")
-    run = wandb.init(project="cpdf", config={"learning_rate": lr, "epochs": epoch, "lambda": lamb})
-    '''
-    
-    dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb,sf = scale_factor)
+def grad_desc_pdf_tune(epdf_eval, epdf_train, epoch= 100, lr = 0.01, lamb = 0.5, sf = None):
+    dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb, sf=sf)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
-    dl_tr = DataLoader(ds,batch_size = 100)
+    dl_tr = DataLoader(ds,batch_size = 1)
     dse = DataSet(epdf_eval.t,epdf_eval.h, tor = True,zdim = True)
-    dl_eval = DataLoader(dse,batch_size = 50)
-    
-    orig_stdout = sys.stdout
-    
+    dl_eval = DataLoader(dse,batch_size = 1)
     dn.fit(dl_tr,dl_eval)
+    return dn
 
+if __name__ == "__main__":
+    ## (Step 1) Training
+    ## Seeding and fixing the size of the data and the number of mixtures, both regression and gradient descent are computed 
+    np.random.seed(1) # 125 is two almost separated classes
+    N =  100000
+    mix = 2
+    gen_dat = DataGenerator(N, n_mixture = mix, split = .5, tor = True)
+    x_tr, x_te = gen_dat.gmm_data() 
+    deg = 5
+    epoch, lr, lamb = 100, 0.01, 0.5
+    epdf_eval, epdf_train = regression(x_tr, x_te, deg)
+    scale_factor = 10**(-np.round(np.log10(np.abs(epdf_train.coeff))))
+    dn = grad_desc_pdf_tune(epdf_eval, epdf_train, epoch, lr, lamb, scale_factor)
+    dn2 = grad_desc_pdf_tune(epdf_train, epdf_eval, epoch, lr, lamb, scale_factor)
+    poly_coeff = dn2.params.detach().numpy()
 
-    #f_eval = dn.forward(x_te.clone())
-    if isinstance(x_te,torch.Tensor):
-        x_te = x_te.clone().detach().float()
-    else:
-        x_te = torch.tensor(x_te,dtype = torch.float32)
-    '''
-    plt.figure(2)
-    f_eval = dn.forward(x_te)
-    plt.plot(x_te,f_eval.clone().detach().numpy(), 'bo')
+    ## (Step 2) Inferences and Plots
+
+    plt.figure(1)
+    f_eval = dn.forward(torch.tensor(x_te,dtype = torch.float32).detach())
+    plt.plot(x_te,f_eval.detach().numpy(), 'bo')
     plt.hist(x_tr,bins = 150,density = True)
     plt.title("Histogram and model")
-    #plt.savefig(path_dir+"2_histogram.png") '''
 
-    gmm = gau_mix(x, mix)
+    gmm = gau_mix(epdf_train.data, mix)
     logprob = gmm.score_samples(epdf_train.t.reshape(epdf_train.t.shape[0],1))
     gmm_pdf = np.exp(logprob)
 
-    ''' 
-    plt.figure(3)
+    plt.figure(2)
     plt.plot(epdf_train.t,epdf_train.h,'.', label = 'train histo')
-    plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo') '''
-    ####
-    if isinstance(epdf_train.t,torch.Tensor):
-        epdft = epdf_train.t.clone().detach().float()
-    else:
-        epdft = torch.tensor(epdf_train.t,dtype = torch.float32)
-    f2 = dn.forward(epdft)
+    plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo')
+    x = torch.linspace(epdf_train.t[0],epdf_train.t[-1],490)
+    f = dn.forward(torch.tensor(x,dtype = torch.float32).detach())
+    f2 = dn2.forward(torch.tensor(x,dtype = torch.float32).detach())
+    plt.plot(x,f2.detach().numpy(), label = 'training data model')
+    plt.plot(x,f.detach().numpy(), label = 'test data model')
     plt.plot(epdf_train.t,gmm_pdf, label = 'GMM')
-    plt.plot(epdf_train.t,f2.detach(),label = 'actual model')
-    pp = epdf_eval.poly_eval(epdf_train.t,poly_coeff)
-    plt.plot(epdf_train.t,epdf_train.sigma(pp)*(1-epdf_train.sigma(pp))*epdf_train.poly_derivative(epdf_train.t,poly_coeff), label = "LR pdf")
-    #plt.plot(domain, pdf, label = 'true pdf')
     plt.legend()
     plt.title("Densities")
-    #plt.savefig(path_dir+"3_densities.png")
     
-    plt.figure(4)
-    plt.plot(x,F, label = 'Actual CDF')
+    plt.figure(3)
+    plt.plot(epdf_train.x_domain,epdf_train.cdf, label = 'Actual CDF')
     plt.plot(x,dn.net_cdf(torch.tensor(x,dtype = torch.float32)).detach().numpy(), label = 'model CDF')
-    plt.plot(x, dn.activation(torch.tensor(p)), label = 'Linear Reg CDF')
     plt.legend()
     plt.title("CDF's")
     plt.show()
-   
+
+    ## (Step 3) Distributional Metrics: L1-distance
+
+    p_value = 0.99 # probability we want to estimate
+    interval_tr = dn.epdf.interval(p_value) # range within the probability value is located (p_value neighborhood)
+    te_dom_valid_pr =  dn.epdf.prob_interval(x_te,interval_tr) # real cdf's values within the range
+    print('Train interval:', interval_tr, "L1-error + interval probability:", dn.densities_l1_distance(epdf_train.t, epdf_train.h, interval_tr)) # L1-error and probability inside the range.
+    
+    ## (Step 4) Distributional Metrics: Wasserstein distance
+    pol1 = epdf_train.poly_eval(x,dn.params.detach().numpy())
+    pol2 = epdf_eval.poly_eval(x,dn2.params.detach().numpy())
+    #was = wasserstein_opt(dn.activation(pol1)[:-1],dn.activation(pol2),x)
+    cdf1 = dn.activation(pol1)
+    cdf2 = dn2.activation(pol2)
+    was = density_projection.wasserstein_cdf(dn.activation(pol1),dn2.activation(pol2),x)
+    was_scipy = stats.wasserstein_distance(x_te,x_tr)
+    scipy_time = timeit.timeit(lambda: stats.wasserstein_distance(x_te,x_tr), number=1000)
+    custom_time = timeit.timeit(lambda: density_projection.wasserstein_cdf(cdf1,cdf2,x), number=1000)
+    print('Scipy-wasserstein distance:', was_scipy, 'scipy mean time:', scipy_time, "Fast wasserstein:", was.item(), 'fast mean time:', custom_time)
+    
+    #Wasserstein distance point to distribution
+    wass_dis = density_projection.wasserstein_point(cdf1, 0.5, x)
+    print("Wasserstein distro to point:", wass_dis.item())

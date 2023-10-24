@@ -1,0 +1,9 @@
+scikit-learn
+torchvision
+torchaudio>=0.13.0
+torchtext>=0.14
+matplotlib
+torchmetrics<1,>0.9
+pandas<2,>1.4
+requests
+pytest<8,>7
