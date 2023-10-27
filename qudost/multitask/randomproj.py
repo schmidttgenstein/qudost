@@ -186,6 +186,7 @@ class Featurization(Dataset):
             y_data[j] = y
         self.x_data = x_data
         self.y_data = y_data
+        
 
     def initialize_conv_layers(self):
         if isinstance(self.patches, dict):  # Variable-sized patches

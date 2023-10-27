@@ -39,7 +39,7 @@ class SubDataset(Dataset):
 
 
 
-def split_dataset_with_difference(dataset, difference=0.1):
+def split_image_dataset(dataset, difference=0.1):
     # Get a list of indices for each label
     indices_per_label = defaultdict(list)
     for idx, (_, label) in enumerate(dataset):
@@ -78,3 +78,29 @@ def split_dataset_with_difference(dataset, difference=0.1):
     batch2 = SubDataset(batch2_images, batch2_labels)
 
     return batch1, batch2
+def split_featurized_dataset(featurized_data, difference):
+    
+    
+    labels = [featurized_data[i][1] for i in range(len(featurized_data))]
+    even_indices = [i for i, label in enumerate(labels) if label % 2 == 0]
+    odd_indices = [i for i, label in enumerate(labels) if label % 2 != 0]
+    total_even = len(even_indices)
+    num_even_in_first_batch = int((0.5 + difference / 2) * total_even)
+    np.random.shuffle(even_indices)
+    np.random.shuffle(odd_indices)
+    
+ 
+    first_batch_indices = even_indices[:num_even_in_first_batch] + odd_indices[:len(odd_indices) // 2]
+    second_batch_indices = even_indices[num_even_in_first_batch:] + odd_indices[len(odd_indices) // 2:]
+    
+  
+    np.random.shuffle(first_batch_indices)
+    np.random.shuffle(second_batch_indices)
+    
+    first_batch_images = [featurized_data[i][0] for i in first_batch_indices]
+    first_batch_labels = [featurized_data[i][1] for i in first_batch_indices]
+    second_batch_images = [featurized_data[i][0] for i in second_batch_indices]
+    second_batch_labels = [featurized_data[i][1] for i in second_batch_indices]
+
+    return SubDataset(first_batch_images, first_batch_labels), SubDataset(second_batch_images, second_batch_labels)
+

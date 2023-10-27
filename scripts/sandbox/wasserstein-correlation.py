@@ -2,62 +2,59 @@ import numpy as np
 from qudost.multitask.randomproj import *
 import matplotlib.pyplot as plt
 from scipy.stats import wasserstein_distance
-from qudost import CombinedMNIST, split_dataset_with_difference
-
+from qudost import CombinedMNIST, split_featurized_dataset
+import pickle
+import time
 if __name__ == "__main__":
-    # Set number of patches
-    num_patches = 2
-    patch_size = None
-    num_bins = 50
+    
+    # Hyperparameters
+    num_patches = 1
+    patch_size = 5
+    # Initialize the dataset and random patches
     dataset = CombinedMNIST()
-    threshold_for_difference = 0.1
-    # Set difference values
-    difference_values = [i * 0.1 for i in range(3)]
+    random_patches = RandomPatches(dataset, threshold=None, K=num_patches, p=patch_size)
+    patches = random_patches.random_patches()
+    featurized_dataset= Featurization(dataset, patches, num_patches, True, p=patch_size)
+    
 
+    N = 1000
+    with open("featurized_MNIST_10k-p=5.pkl", "rb") as f:
+        featurized_dataset = pickle.load(f)
+
+    # Modify the datasets to keep only the first N features
+    for idx in featurized_dataset.x_data:
+        featurized_dataset.x_data[idx] = featurized_dataset.x_data[idx][:N]
+    num_patches = N 
+    num_bins = 50
+    difference_values = [i * 0.5 for i in range(10)]
     # Results storage
-    fractions_above_threshold = []
+    mean_wasserstein_distances = []
 
     # Iterate over each difference value
     for difference in difference_values:
+        batch_start_time = time.time()
         # Split the dataset with current difference value
-        batch1, batch2 = split_dataset_with_difference(dataset, difference=difference)
+        batch1, batch2 = split_featurized_dataset(featurized_dataset, difference=difference)
+        batch_end_time = time.time()
+        batch_time = batch_end_time - batch_start_time
+        print("Batch Time = ", batch_time, ' seconds')
         
-        # Generate patches and featurize batches
-        random_patches = RandomPatches(batch1, threshold=None, K=num_patches, p=patch_size)
-        patches = random_patches.random_patches()
-        featurized_batch1 = Featurization(batch1, patches, num_patches, True, p=patch_size)
-        featurized_batch2 = Featurization(batch2, patches, num_patches, True, p=patch_size)
-        
-        # Compute histograms for batches
-        histograms_batch1, histograms_batch2 = [], []
-        for j in range(num_patches):
-            data_batch1 = [featurized_batch1[i][0][j].item() for i in range(len(featurized_batch1))]
-            data_batch2 = [featurized_batch2[i][0][j].item() for i in range(len(featurized_batch2))]
-            hist_batch1, _ = np.histogram(data_batch1, bins=num_bins, density=True)
-            hist_batch2, _ = np.histogram(data_batch2, bins=num_bins, density=True)
-            histograms_batch1.append(hist_batch1)
-            histograms_batch2.append(hist_batch2)
-        
-        # Compute Wasserstein distances
-        wasserstein_distances = []
-        for i in range(num_patches):
-            distance = wasserstein_distance(histograms_batch1[i], histograms_batch2[i])
-            wasserstein_distances.append(distance)
-        
-        # Compute fraction of patches with Wasserstein distance above the threshold
-        num_above_threshold = sum([1 for dist in wasserstein_distances if dist > threshold_for_difference])
-        fraction_above_threshold = num_above_threshold / num_patches
+        wass_start_time = time.time()
+        # Compute Wasserstein distances directly between the batches' entries
+        wasserstein_distances = [wasserstein_distance(batch1[i][0], batch2[i][0]) for i in range(num_patches)]
+        wass_end_time = time.time()
+        wass_time = wass_end_time-wass_start_time
+        print("Wasserstein Distance Time = ", wass_time, ' seconds')
+        # Compute the mean Wasserstein distance for the current difference value
+        mean_distance = np.mean(wasserstein_distances)
         
         # Store result
-        fractions_above_threshold.append(fraction_above_threshold)
+        mean_wasserstein_distances.append(mean_distance)
 
     # Plot results
-    plt.plot(difference_values, fractions_above_threshold, marker='o')
+    plt.plot(difference_values, mean_wasserstein_distances, marker='o')
     plt.xlabel("Difference Value")
-    plt.ylabel("Fraction Above Threshold")
-    plt.title("Fraction of Patches with Wasserstein Distance Above Threshold vs. Difference Value")
+    plt.ylabel("Mean Wasserstein Distance")
+    plt.title("Mean Wasserstein Distance vs. Difference Value")
     plt.grid(True)
     plt.show()
-
-
-
