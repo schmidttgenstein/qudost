@@ -8,7 +8,7 @@ version = "0.0.1"
 authors = [
   {name="James Schmidt"}
 ]
-description = "Utility tool to insert poisoned signals into an audio dataset"
+description = "Functionality for Density Estimation and Uncertainty Quantification"
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
