@@ -34,7 +34,7 @@ if __name__ == "__main__":
         train_dataset = MNIST(root='./data', train=True, transform = transf, download=True)
         val_dataset = MNIST(root='./data', train=False, transform =transf, download=True)
     # Random patch parameters, set patch size to None for variable patch size:
-    num_patches = 2
+    num_patches = 100
     num_histos = 2
     threshold = None
     patch_size = None
