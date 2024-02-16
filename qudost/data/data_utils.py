@@ -13,6 +13,7 @@ class DataGenerator:
         self.n_mixture = n_mixture
         self.split = split
         self.tor = tor
+        self.gmm_mixtures = None
 
     def gen_data(self,n = None,split = 0.6,mu_factor = 1):
         if n is None:
@@ -82,13 +83,16 @@ class DataGenerator:
     
     def gmm_data(self,):
         datas = []
+        mixtures = []
         for j in range(self.n_mixture):
             m = np.random.normal(0,5)
             s = np.random.lognormal()
+            mixtures.append([m,s])
             data = np.random.normal(m,s,self.N)
             datas.append(data)
         data = np.concatenate(datas)
-        return self.train_test_split(data)
+        self.gmm_mixtures = mixtures
+        return self.train_test_split(data) 
     
     def cauchy(self, trim = 20):
         s = np.random.standard_cauchy(self.N)

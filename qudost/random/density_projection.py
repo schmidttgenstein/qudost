@@ -22,6 +22,14 @@ def read_json_featurization(file_path):
 
 
 def wasserstein_opt(cdf1, cdf2, x_vals):
+    ### Computes the Wasserstein distance between two distributions via cost function for optimal transport.
+    ### Input:
+    ###   cdf1 (array-like) - CDF values of the first distribution.
+    ###   cdf2 (array-like) - CDF values of the second distribution.
+    ###   x_vals (array-like) - Input values.
+    ### Output:
+    ###   wasserstein_dist (float) - Wasserstein distance between the two distributions.
+
     # Compute the cost matrix for the optimal transport problem
     cost_matrix = np.abs(np.subtract.outer(cdf1, cdf2))
     # Solve the assignment problem to get the Wasserstein distance
@@ -30,16 +38,30 @@ def wasserstein_opt(cdf1, cdf2, x_vals):
     return wasserstein_dist
 
 def wasserstein_cdf(cdf1, cdf2, x_vals):
+    ### Computes the Wasserstein distance between two distributions using integration over CDFs.
+    ### Input:
+    ###   cdf1 (array-like) - CDF values of the first distribution.
+    ###   cdf2 (array-like) - CDF values of the second distribution.
+    ###   x_vals (array-like) - Input values.
+    ### Output:
+    ###   wasserstein_distance (float) - Wasserstein distance between the two distributions.
     wasserstein_distance = torch.trapz(np.abs(cdf1 - cdf2), x_vals)
     return wasserstein_distance
 
 def wasserstein_point(cdf1, point, x_vals):
+    ### Computes the Wasserstein distance between a distribution and a second distribution supported on a point using integration over CDFs.
+    ### Input:
+    ###   cdf1 (array-like) - CDF values of the first distribution.
+    ###   point (float) - Point where the second distribution is supported.
+    ###   x_vals (array-like) - Input values.
+    ### Output:
+    ###   wasserstein_distance (float) - Wasserstein distance between the two distributions.
     heaviside_point = torch.where(x_vals < point, 0, 1)
     wasserstein_distance = torch.trapz(np.abs(cdf1 - heaviside_point), x_vals)
     return wasserstein_distance
 
 def make_regression(x_tr,x_te,deg):
-    #ECDF - Linear Regression
+    ### Implementation of Algorithm 1: Trains a regression model using EPDF and returns trained EPDF instances for posterior gradient descent. 
     epdf_eval = EPDF(x_te)
     epdf_train = EPDF(x_tr)
     reg = RegressionCDF(epdf_train.cdf, epdf_train.x_domain,degree = deg)
@@ -51,6 +73,15 @@ def make_regression(x_tr,x_te,deg):
     return epdf_eval, epdf_train
 
 def fine_tune(epdf_eval, epdf_train, epoch= 100, lr = 0.01, lamb = 0.5):
+    ### Implementation of Algorithm 2: Fine-tunes a trained EPDF using a DensityNetwork instance.
+    ### Input:
+    ###   epdf_eval (EPDF) - EPDF instance for evaluation data.
+    ###   epdf_train (EPDF) - EPDF instance for training data.
+    ###   epoch (int) - Number of epochs for training the DensityNetwork.
+    ###   lr (float) - Learning rate for training the DensityNetwork.
+    ###   lamb (float) - Regularization parameter for training the DensityNetwork.
+    ### Output:
+    ###   dn (DensityNetwork) - Trained DensityNetwork instance.
     dn = DensityNetwork(epdf_train,epoch = epoch,lr = lr, lamb=lamb)
     ds = DataSet(epdf_train.t,epdf_train.h,tor = True,zdim = True)
     dl_tr = DataLoader(ds,batch_size = 1)
@@ -88,8 +119,8 @@ if __name__ == "__main__":
     plt.plot(epdf_train.t,epdf_train.h,'.', label = 'train histo')
     plt.plot(epdf_eval.t,epdf_eval.h,'.',label = 'eval histo')
     x = torch.linspace(epdf_train.t[0],epdf_train.t[-1],490)
-    f = dn.forward(torch.tensor(x,dtype = torch.float32).detach())
-    f2 = dn2.forward(torch.tensor(x,dtype = torch.float32).detach())
+    f = dn.net_pdf(torch.tensor(x,dtype = torch.float32).detach())
+    f2 = dn2.net_pdf(torch.tensor(x,dtype = torch.float32).detach())
     plt.plot(x,f.detach().numpy(), label = 'training data model')
     #pp = epdf_eval.poly_eval(x,poly_coeff)
     #plt.plot(x,epdf_train.sigma(pp)*(1-epdf_train.sigma(pp))*epdf_train.poly_derivative(x,poly_coeff), label = "LR pdf")
@@ -100,17 +131,14 @@ if __name__ == "__main__":
     plt.plot(x, f.detach().numpy()/f2.detach().numpy())
     plt.title("Ratio of densities")
 
-    pol1 = epdf_train.poly_eval(x,dn.params.detach().numpy())
-    pol2 = epdf_eval.poly_eval(x,dn2.params.detach().numpy())
+    cdf1 = dn.net_cdf(x).detach()
+    cdf2 = dn2.net_cdf(x).detach()
     plt.figure(5)
     plt.plot(x,f.detach().numpy(), label = 'training data model')
     plt.plot(x,f2.detach().numpy(), label = 'evaluation data model')
-    plt.plot(x,dn.activation(pol1), label = "train cdf")
-    plt.plot(x,dn2.activation(pol2), label = "evaluation cdf")
-    #was = wasserstein_opt(dn.activation(pol1)[:-1],dn.activation(pol2),x)
-    cdf1 = dn.activation(pol1)
-    cdf2 = dn2.activation(pol2)
-    was = wasserstein_cdf(dn.activation(pol1),dn2.activation(pol2),x)
+    plt.plot(x,cdf1, label = "train cdf")
+    plt.plot(x,cdf2, label = "evaluation cdf")
+    was = wasserstein_cdf(cdf1,cdf2,x)
     scipy_time = timeit.timeit(lambda: stats.wasserstein_distance(x_te,x_tr), number=1000)
     custom_time = timeit.timeit(lambda: wasserstein_cdf(cdf1,cdf2,x), number=1000)
     plt.legend()
